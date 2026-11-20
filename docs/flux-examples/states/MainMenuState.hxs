@@ -1,0 +1,14 @@
+// Va en mods/TuMod/states/MainMenuState.hxs: corre mientras está abierto el menú principal.
+var aviso:FlxText;
+
+function onCreatePost() {
+	aviso = makeText(0, FlxG.height - 40, FlxG.width, 'Presioná M para abrir MiMenu', 20);
+	aviso.alignment = 'center';
+	aviso.scrollFactor.set();
+	add(aviso);
+}
+
+function onUpdate(elapsed) {
+	if (keyboardJustPressed('M'))
+		switchState('MiMenu'); // abre states/MiMenu.hxs
+}

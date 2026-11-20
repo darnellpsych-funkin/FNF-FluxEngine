@@ -137,6 +137,12 @@ class FluxRuleScript extends FluxScript
 		#end
 	}
 
+	override public function setParentInstance(parent:Dynamic):Void
+	{
+		if (script != null)
+			script.superInstance = parent;
+	}
+
 	override public function destroy():Void
 	{
 		super.destroy();

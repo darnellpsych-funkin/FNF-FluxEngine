@@ -1,0 +1,19 @@
+// Va en mods/TuMod/scripts/global/: corre en todos los menús y canciones.
+var reloj:FlxText;
+
+function onStateCreatePost(estado) {
+	reloj = makeText(FlxG.width - 120, 5, 110, '', 16);
+	reloj.alignment = 'right';
+	reloj.scrollFactor.set();
+	reloj.cameras = [FlxG.cameras.list[FlxG.cameras.list.length - 1]]; // la cámara de arriba de todo
+	estado.add(reloj);
+}
+
+function onStateSwitch(estado) {
+	reloj = null; // el menú viejo se borra con todo lo que tenía
+}
+
+function onUpdate(elapsed) {
+	if (reloj != null)
+		reloj.text = DateTools.format(Date.now(), '%H:%M:%S');
+}

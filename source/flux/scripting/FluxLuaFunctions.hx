@@ -14,9 +14,10 @@ using StringTools;
  *   runRuleScript(codigo, ?funcion, ?argumentos)
  *   runNXScript(codigo, ?funcion, ?argumentos)
  *   runHScriptPlus(codigo, ?funcion, ?argumentos)
- *   runFluxFunction(lenguaje, funcion, ?argumentos)   -- lenguaje: "rulescript", "nxscript" o "hscriptplus"
+ *   runHScriptImproved(codigo, ?funcion, ?argumentos)
+ *   runFluxFunction(lenguaje, funcion, ?argumentos)   -- lenguaje: "rulescript", "nxscript", "hscriptplus" o "hxs"
  *
- * Scripts de archivo (.rhx, .nx, .nxs, .hsp):
+ * Scripts de archivo (.rhx, .nx, .nxs, .hsp, .hxs):
  *   addFluxScript(archivo, ?ignorarSiYaCorre)
  *   removeFluxScript(archivo)
  *   isFluxScriptRunning(archivo)
@@ -57,6 +58,11 @@ class FluxLuaFunctions
 		#if HSCRIPT_PLUS_ALLOWED
 		funk.addLocalCallback("runHScriptPlus", function(code:String, ?funcToRun:String = null, ?funcArgs:Array<Dynamic> = null) {
 			return runCode(funk, '.hsp', code, funcToRun, funcArgs);
+		});
+		#end
+		#if HSCRIPT_IMPROVED_ALLOWED
+		funk.addLocalCallback("runHScriptImproved", function(code:String, ?funcToRun:String = null, ?funcArgs:Array<Dynamic> = null) {
+			return runCode(funk, '.hxs', code, funcToRun, funcArgs);
 		});
 		#end
 		funk.addLocalCallback("runFluxFunction", function(language:String, funcToRun:String, ?funcArgs:Array<Dynamic> = null) {
@@ -179,6 +185,7 @@ class FluxLuaFunctions
 			case 'rulescript' | 'rule' | 'rhx': '.rhx';
 			case 'nxscript' | 'nx' | 'nxs': '.nx';
 			case 'hscriptplus' | 'hsplus' | 'hsp': '.hsp';
+			case 'hscriptimproved' | 'hsimproved' | 'improved' | 'hxs': '.hxs';
 			default: null;
 		}
 	}
@@ -190,6 +197,7 @@ class FluxLuaFunctions
 			case '.rhx': 'RuleScript';
 			case '.nx': 'NXScript';
 			case '.hsp': 'HScriptPlus';
+			case '.hxs': 'HScriptImproved';
 			default: '?';
 		}
 	}
@@ -198,7 +206,7 @@ class FluxLuaFunctions
 	static function toLua(value:Dynamic):Dynamic
 		return LuaUtils.isLuaSupported(value) ? value : null;
 
-	/** Busca un archivo de script; si no tiene extensión prueba .rhx, .nx, .nxs y .hsp */
+	/** Busca un archivo de script; si no tiene extensión prueba todas las de Flux (.rhx, .nx, .nxs, .hsp, .hxs) */
 	static function findScriptFile(scriptFile:String):String
 	{
 		if (scriptFile == null) return null;

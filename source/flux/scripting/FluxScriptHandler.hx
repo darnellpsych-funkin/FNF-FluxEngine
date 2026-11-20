@@ -14,12 +14,14 @@ using StringTools;
  *   .nx  / .nxs  -> NXScript     (define NXSCRIPT_ALLOWED)
  *   .rhx         -> RuleScript   (define RULESCRIPT_ALLOWED)
  *   .hsp         -> hscript-plus (define HSCRIPT_PLUS_ALLOWED)
+ *   .hxs         -> hscript-improved de Codename, con preset expandido (define HSCRIPT_IMPROVED_ALLOWED)
  */
 class FluxScriptHandler
 {
 	public static var NX_EXTENSIONS(default, null):Array<String> = ['.nx', '.nxs'];
 	public static var RULE_EXTENSIONS(default, null):Array<String> = ['.rhx'];
 	public static var HSPLUS_EXTENSIONS(default, null):Array<String> = ['.hsp'];
+	public static var HXS_EXTENSIONS(default, null):Array<String> = ['.hxs'];
 
 	static var initialized:Bool = false;
 
@@ -30,6 +32,7 @@ class FluxScriptHandler
 		#if NXSCRIPT_ALLOWED exts = exts.concat(NX_EXTENSIONS); #end
 		#if RULESCRIPT_ALLOWED exts = exts.concat(RULE_EXTENSIONS); #end
 		#if HSCRIPT_PLUS_ALLOWED exts = exts.concat(HSPLUS_EXTENSIONS); #end
+		#if HSCRIPT_IMPROVED_ALLOWED exts = exts.concat(HXS_EXTENSIONS); #end
 		return exts;
 	}
 
@@ -52,6 +55,12 @@ class FluxScriptHandler
 			trace(text);
 			if (PlayState.instance != null && FlxG.state == PlayState.instance)
 				PlayState.instance.addTextToDebug(text, FlxColor.RED);
+		};
+		FluxScript.onWarning = function(script:FluxScript, message:String) {
+			var text = '[${script.language}] ${script.origin}: $message';
+			trace(text);
+			if (PlayState.instance != null && FlxG.state == PlayState.instance)
+				PlayState.instance.addTextToDebug(text, FlxColor.YELLOW);
 		};
 
 		#if (RULESCRIPT_ALLOWED && HSCRIPT_ALLOWED)
@@ -107,11 +116,19 @@ class FluxScriptHandler
 			for (ext in HSPLUS_EXTENSIONS)
 				if (lower.endsWith(ext)) script = new FluxHScriptPlus(origin, code);
 		#end
+		#if HSCRIPT_IMPROVED_ALLOWED
+		if (script == null)
+			for (ext in HXS_EXTENSIONS)
+				if (lower.endsWith(ext)) script = new FluxHScriptImproved(origin, code, FlxG.state);
+		#end
 
 		if (script == null) return null;
 
 		script.modFolder = modFolder;
 		preset(script);
+		#if HSCRIPT_IMPROVED_ALLOWED
+		if (script is FluxHScriptImproved) FluxHxsPreset.apply(script);
+		#end
 		if (extraVars != null)
 			for (name => value in extraVars)
 				script.set(name, value);

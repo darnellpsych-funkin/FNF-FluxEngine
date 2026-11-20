@@ -1,0 +1,20 @@
+// Un menú nuevo hecho solo con un script. Se abre con switchState('MiMenu').
+var titulo:FlxText;
+
+function onCreatePost() {
+	var fondo = makeSprite(0, 0, 'menuDesat');
+	fondo.color = color('#3F51B5');
+	add(fondo);
+
+	titulo = makeText(0, 300, FlxG.width, '¡Hola desde MiMenu.hxs!', 40);
+	titulo.alignment = 'center';
+	add(titulo);
+
+	playMusic('freakyMenu');
+}
+
+function onUpdate(elapsed) {
+	titulo.angle = Math.sin(Timer.stamp() * 2) * 5;
+	if (controls.BACK)
+		switchState('MainMenuState');
+}

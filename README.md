@@ -11,12 +11,60 @@ Fork de **Psych Engine 1.0.4** con más lenguajes de scripting y compatibilidad 
 | NXScript | `.nx`, `.nxs` | [nxscript 0.5.8](https://github.com/senioritaelizabeth/NxScript) |
 | RuleScript | `.rhx` | [rulescript 0.2.0](https://github.com/Kriptel/RuleScript) + hscript 2.6.0 |
 | hscript-plus | `.hsp` | [hscript-plus](https://github.com/DleanJeans/hscript-plus) (incluido en `source/flux/vendor/hsplus`) |
+| HScript expandido | `.hxs` | [hscript-improved](https://github.com/CodenameCrew/hscript-improved) de Codename Engine (incluido en `source/flux/vendor/hsimproved`) |
 
 Los scripts nuevos se cargan en los mismos lugares que los `.hx`: `scripts/`, `data/<canción>/`, `stages/`, `characters/`, `custom_notetypes/` y `custom_events/`. Reciben los mismos callbacks (`onCreate`, `onCreatePost`, `onUpdate`, `onBeatHit`, `goodNoteHit`, ...) y las mismas variables (`game`, `FlxG`, `FlxSprite`, `FlxTween`, `PlayState`, `setVar`, `debugPrint`, `Function_Stop`, ...). Corren después de HScript y respetan `Function_StopHScript` / `Function_StopAll`. Para cambiar valores del juego usa `game.` (`game.health`, `game.combo`...).
 
 - **NXScript**: sus diccionarios `{...}` y funciones se convierten a `null` al pasarlos a Haxe; usa `toHaxe(valor)` para pasarlos (ej. `FlxTween.tween(spr, toHaxe({"alpha": 0}), 1)`). Las funciones del preset (`setVar`, `debugPrint`...) ya lo hacen solas.
 - **RuleScript**: los campos del PlayState (`boyfriend`, `camGame`, `add(...)`...) se pueden leer directo. Soporta `import ... as`, `using`, propiedades, interpolación `'${x}'`, `??=` y clases en script.
 - **hscript-plus**: agrega clases con herencia (`class Jefe extends Enemigo`). Es una versión vieja de hscript (2017): no tiene `() -> {}`, `?.` ni `??`. Dentro de una clase usa `campo = campo + 1` en vez de `+=`. Flux corrige un bug del original que evaluaba dos veces el lado derecho de `a = b`.
+- **HScript expandido (`.hxs`)**: el más completo, ver la sección de abajo.
+
+### HScript expandido (`.hxs`)
+
+Usa el hscript-improved de Codename Engine y trae mucho más listo para usar:
+
+- **Lenguaje**: clases propias (`class Enemigo { ... }`), herencia entre ellas con `super`, `static`, propiedades `(get, set)`, `is` (también con herencia), `enum` con argumentos y `switch` sobre ellos, `import` y `import ... as`, `using StringTools;`, `final`, regex `~/.../`, `?.`, `??`, `'${interpolación}'` y `for (k => v in mapa)`.
+- **Los campos del estado se usan directo**: `boyfriend`, `health`, `camHUD`, `add(...)`... (igual que `game.boyfriend`).
+- **`static var`** se comparten entre todos los `.hxs` y duran toda la sesión (sirven para contar partidas, guardar cosas entre canciones, etc.).
+- **`import` que no existe**: no corta el script; avisa en amarillo y la variable queda en `null`. Algunos nombres de Codename y de V-Slice se cambian solos por los de Psych (`funkin.game.PlayState`, `funkin.backend.assets.Paths`, `funkin.Conductor`...).
+- **Clases sin `import`**: casi todo Flixel (`FlxSprite`, `FlxText`, `FlxGroup`, `FlxSpriteGroup`, `FlxBackdrop`, `FlxTrail`, `FlxBar`, `FlxPoint`, `FlxRect`, `FlxSound`, `FlxGradient`, `FlxAxes`, `FlxTweenType`...), OpenFL (`BitmapData`, `BlurFilter`, `GlowFilter`, `ColorMatrixFilter`, `Matrix`, `BlendMode`...), Haxe (`Json`, `Reflect`, `Lambda`, `Date`, `DateTools`, `EReg`, `Timer`) y Psych (`Paths`, `Conductor`, `ClientPrefs`, `CoolUtil`, `Character`, `Note`, `StrumNote`, `HealthIcon`, `Bar`, `BGSprite`, `Song`, `WeekData`, `Highscore`, `Mods`, los menús, `PauseSubState`, `GameOverSubstate`...).
+
+Funciones extra:
+
+| Función | Qué hace |
+|---|---|
+| `getProperty('boyfriend.scale.x')` / `setProperty('dad.visible', false)` | Como en Lua (también `notes.members[0].alpha` y las variables de `setVar`) |
+| `getPropertyFromClass('backend.ClientPrefs', 'data.downScroll')` / `setPropertyFromClass(...)` | Igual, en una clase |
+| `makeSprite(x, y, 'imagen')` / `makeAnimatedSprite(x, y, 'atlas')` / `makeText(x, y, ancho, 'texto', 24)` | Crea sprites y texto (para agregarlos usa `add`) |
+| `addAnim(sprite, 'idle', 'prefijo', 24, true)` / `playAnim(sprite, 'idle', true)` | Animaciones (`addAnim(..., '0,1,2')` usa índices) |
+| `screenCenter(objeto, 'xy')` | Centra en pantalla (`'x'`, `'y'` o `'xy'`) |
+| `tween(objeto, {alpha: 0}, 1, 'quadOut', fin)` / `tweenColor(objeto, 1, desde, hasta)` / `cancelTweens(objeto)` | Tweens con el nombre del ease como en Lua |
+| `timer(1.5, function(t) {...}, 3)` / `wait(1, function() {...})` | Timers |
+| `playSound('nombre', 0.7)` / `playMusic('nombre')` / `precacheImage(...)`, `precacheSound(...)`, `precacheMusic(...)` | Sonido |
+| `getCamera('hud')` / `cameraShake('game', 0.01, 0.2)` / `cameraFlash('hud', color, 0.5)` / `cameraFade(...)` | Cámaras (`'game'`, `'hud'` u `'other'`) |
+| `color('#FF0000')` / `lerp(a, b, t)` / `clamp(v, min, max)` / `randomInt(0, 10)` / `randomFloat(0, 1)` / `randomBool(50)` | Números y colores |
+| `fileExists('data/x.json')` / `readFile('data/x.txt')` / `parseJson(texto)` / `toJson(valor, true)` | Archivos del mod y JSON |
+| `callOnScripts('func', [args])` / `callOnLuas(...)` / `setOnScripts('var', valor)` / `triggerEvent('Hey!', 'bf', '0.6')` | Otros scripts y eventos (en las canciones) |
+| `importScript('scripts/utilidades')` | Corre otro `.hxs` dentro de este (comparten variables y funciones) |
+| `switchState('MainMenuState')` / `resetState()` / `openCustomSubstate('nombre', true)` | Cambiar de menú (también menús hechos con script, ver abajo) |
+| `mouseX()`, `mouseY()`, `mouseClicked()`, `mousePressed()`, `mouseReleased()`, `mouseOverlaps(sprite)` | Mouse |
+
+Desde Lua: `runHScriptImproved(código, ?función, ?argumentos)` y `runFluxFunction('hxs', función, argumentos)`.
+
+### Scripts de menús y scripts globales
+
+Funcionan con todos los lenguajes de Flux, pero están pensados para `.hxs`:
+
+- **Menús**: `mods/TuMod/states/<Menú>.hxs`, por ejemplo `states/MainMenuState.hxs`, `states/FreeplayState.hxs`, `states/TitleState.hxs` o `states/OptionsState.hxs`. Corre mientras ese menú está abierto, y `game` es el menú. Funciones: `onCreate`, `onCreatePost`, `onUpdate(elapsed)`, `onUpdatePost(elapsed)`, `onBeatHit(beat)`, `onStepHit(step)`, `onDestroy`, `onFocusLost` y `onFocus`.
+- **Menús nuevos**: `switchState('MiMenu')` abre `states/MiMenu.hxs` como un menú propio, aunque no exista en el código del engine.
+- **Globales**: `mods/TuMod/scripts/global/*.hxs` corren siempre, en todos los menús y canciones. Funciones: `onCreate`, `onStateCreate(menú)`, `onStateCreatePost(menú)`, `onStateSwitch(menú)`, `onUpdate(elapsed)`, `onBeatHit`, `onStepHit`, `onFocusLost` y `onFocus`.
+
+Se buscan en las mismas carpetas que usa Psych: el mod actual, los mods globales y `mods/`.
+
+Ejemplos: [`ejemplo.hxs`](docs/flux-examples/ejemplo.hxs), [`states/MainMenuState.hxs`](docs/flux-examples/states/MainMenuState.hxs), [`states/MiMenu.hxs`](docs/flux-examples/states/MiMenu.hxs) y [`scripts/global/reloj.hxs`](docs/flux-examples/scripts/global/reloj.hxs).
+
+Experimental: para que las clases de un `.hxs` puedan heredar de clases de Flixel (`class MiSprite extends FlxSprite`), quita el comentario de `HXS_FLIXEL_CLASSES` en `Project.xml`. La compilación tarda más.
 
 ### Lua usa los otros lenguajes
 
@@ -25,8 +73,9 @@ Los scripts nuevos se cargan en los mismos lugares que los `.hx`: `scripts/`, `d
 | `runRuleScript(código, ?función, ?argumentos)` | Ejecuta código RuleScript (las variables y funciones se mantienen entre llamadas) |
 | `runNXScript(código, ?función, ?argumentos)` | Igual, con NXScript |
 | `runHScriptPlus(código, ?función, ?argumentos)` | Igual, con hscript-plus |
-| `runFluxFunction(lenguaje, función, ?argumentos)` | Llama una función creada antes con `run...` (`"rulescript"`, `"nxscript"` o `"hscriptplus"`) |
-| `addFluxScript(archivo)` / `removeFluxScript(archivo)` | Carga o quita un script `.rhx`, `.nx`, `.nxs` o `.hsp` (la extensión es opcional) |
+| `runHScriptImproved(código, ?función, ?argumentos)` | Igual, con el HScript expandido (`.hxs`) |
+| `runFluxFunction(lenguaje, función, ?argumentos)` | Llama una función creada antes con `run...` (`"rulescript"`, `"nxscript"`, `"hscriptplus"` o `"hxs"`) |
+| `addFluxScript(archivo)` / `removeFluxScript(archivo)` | Carga o quita un script `.rhx`, `.nx`, `.nxs`, `.hsp` o `.hxs` (la extensión es opcional) |
 | `isFluxScriptRunning(archivo)` / `getRunningFluxScripts()` | Saber qué scripts están corriendo |
 | `callFluxScript(archivo, función, ?argumentos)` | Llama una función de un script de archivo |
 | `getFluxScriptVar(archivo, variable)` / `setFluxScriptVar(archivo, variable, valor)` | Lee o cambia una variable de un script |
@@ -70,7 +119,7 @@ Necesita RuleScript (`RULESCRIPT_ALLOWED`). Para desactivar los módulos, coment
 
 Los scripts de `setup/` instalan todo, incluidos `nxscript`, `rulescript` y `hscript 2.6.0`. Si compilas a mano y ya tenías otra versión de hscript, ejecuta `haxelib set hscript 2.6.0` (RuleScript 0.2.0 no compila con hscript 2.7 o más nuevo). Si tienes librerías de Git de otros engines (por ejemplo el Lime de V-Slice), usa una carpeta de librerías propia para Flux: en la carpeta del proyecto ejecuta `haxelib newrepo` y `haxelib install hxcpp 4.3.2`, y después abre `setup/windows.bat` con doble clic.
 
-Ejemplos: [`docs/flux-examples/`](docs/flux-examples). Para desactivar un lenguaje, comenta `NXSCRIPT_ALLOWED`, `RULESCRIPT_ALLOWED` o `HSCRIPT_PLUS_ALLOWED` en `Project.xml`.
+Ejemplos: [`docs/flux-examples/`](docs/flux-examples). Para desactivar un lenguaje, comenta `NXSCRIPT_ALLOWED`, `RULESCRIPT_ALLOWED`, `HSCRIPT_PLUS_ALLOWED` o `HSCRIPT_IMPROVED_ALLOWED` en `Project.xml`.
 
 Código: `source/flux/scripting/` (lenguajes y funciones de Lua), `source/flux/vslice/` (mods de V-Slice) y `source/flux/vslice/modules/` (módulos `.hxc`).
 

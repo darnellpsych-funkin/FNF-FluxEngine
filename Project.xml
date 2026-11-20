@@ -28,7 +28,10 @@
 	<define name="NXSCRIPT_ALLOWED" if="desktop" />   <!-- .nx / .nxs -->
 	<define name="RULESCRIPT_ALLOWED" if="desktop" /> <!-- .rhx -->
 	<define name="HSCRIPT_PLUS_ALLOWED" if="desktop" /> <!-- .hsp (incluido en source/flux/vendor/hsplus, no necesita haxelib) -->
-	<define name="FLUX_SCRIPTS_ALLOWED" if="NXSCRIPT_ALLOWED || RULESCRIPT_ALLOWED || HSCRIPT_PLUS_ALLOWED" />
+	<define name="HSCRIPT_IMPROVED_ALLOWED" if="desktop" /> <!-- .hxs: hscript-improved de Codename (incluido en source/flux/vendor/hsimproved) -->
+	<!-- Experimental: clases de .hxs que heredan de clases de Flixel (class MiSprite extends FlxSprite). La compilación tarda más. -->
+	<!-- <define name="HXS_FLIXEL_CLASSES" if="HSCRIPT_IMPROVED_ALLOWED" /> -->
+	<define name="FLUX_SCRIPTS_ALLOWED" if="NXSCRIPT_ALLOWED || RULESCRIPT_ALLOWED || HSCRIPT_PLUS_ALLOWED || HSCRIPT_IMPROVED_ALLOWED" />
 	<define name="FLUX_VSLICE" if="MODS_ALLOWED" /> <!-- cargar mods de V-Slice (fase 1: canciones, charts, audio y semanas) -->
 	<define name="FLUX_VSLICE_SCRIPTS" if="FLUX_VSLICE RULESCRIPT_ALLOWED" /> <!-- módulos .hxc de V-Slice (fase 5, usa RuleScript) -->
 	<define name="ACHIEVEMENTS_ALLOWED" />
@@ -199,6 +202,15 @@
 	<haxeflag name="--macro" value="include('my.pack')" />
 
 	<haxedef name="hscriptPos" if="HSCRIPT_ALLOWED" />
+
+	<!-- Flux: clases de Haxe que los .hxs usan por reflexión (si no, el compilador las recorta) -->
+	<haxeflag name="--macro" value="keep('IntIterator')" if="HSCRIPT_IMPROVED_ALLOWED" />
+	<haxeflag name="--macro" value="keep('EReg')" if="HSCRIPT_IMPROVED_ALLOWED" />
+	<haxeflag name="--macro" value="keep('StringTools')" if="HSCRIPT_IMPROVED_ALLOWED" />
+	<haxeflag name="--macro" value="keep('Lambda')" if="HSCRIPT_IMPROVED_ALLOWED" />
+	<haxeflag name="--macro" value="keep('DateTools')" if="HSCRIPT_IMPROVED_ALLOWED" />
+	<haxedef name="CUSTOM_CLASSES" if="HXS_FLIXEL_CLASSES" />
+	<haxeflag name="--macro" value="flux.vendor.hsimproved.macros.ClassExtendMacro.init()" if="HXS_FLIXEL_CLASSES" />
 
 	<!-- _________________________________ Custom _______________________________ -->
 

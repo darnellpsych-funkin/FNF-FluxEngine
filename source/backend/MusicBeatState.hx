@@ -53,6 +53,7 @@ class MusicBeatState extends FlxState
 	public static var timePassedOnState:Float = 0;
 	override function update(elapsed:Float)
 	{
+		#if FLUX_SCRIPTS_ALLOWED flux.scripting.FluxStateScripts.onUpdate(this, elapsed); #end // scripts de menú (states/<Estado>.hxs)
 		//everyStep();
 		var oldStep:Int = curStep;
 		timePassedOnState += elapsed;
@@ -81,6 +82,7 @@ class MusicBeatState extends FlxState
 		});
 
 		super.update(elapsed);
+		#if FLUX_SCRIPTS_ALLOWED flux.scripting.FluxStateScripts.onUpdatePost(this, elapsed); #end
 	}
 
 	private function updateSection():Void
@@ -174,6 +176,7 @@ class MusicBeatState extends FlxState
 			stage.curDecStep = curDecStep;
 			stage.stepHit();
 		});
+		#if FLUX_SCRIPTS_ALLOWED flux.scripting.FluxStateScripts.onStepHit(this, curStep); #end
 
 		if (curStep % 4 == 0)
 			beatHit();
@@ -188,6 +191,7 @@ class MusicBeatState extends FlxState
 			stage.curDecBeat = curDecBeat;
 			stage.beatHit();
 		});
+		#if FLUX_SCRIPTS_ALLOWED flux.scripting.FluxStateScripts.onBeatHit(this, curBeat); #end
 	}
 
 	public function sectionHit():Void
