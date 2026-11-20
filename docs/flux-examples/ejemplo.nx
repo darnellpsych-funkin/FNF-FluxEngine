@@ -1,0 +1,29 @@
+# Flux Engine - ejemplo de NXScript
+# Ponlo en: mods/TuMod/scripts/ejemplo.nx  (o data/<cancion>/, stages/, characters/...)
+
+var cuadro = null
+var tiempo = 0
+
+func onCreatePost() {
+    cuadro = new FlxSprite(50, 50)
+    cuadro.makeGraphic(120, 120, FlxColor.RED)
+    cuadro.cameras = [game.camHUD]
+    add(cuadro)
+
+    # Diccionarios y lambdas hacia Haxe: usa toHaxe()
+    FlxTween.tween(cuadro, toHaxe({"alpha": 0.5}), 2, toHaxe({"onComplete": t => debugPrint("tween listo")}))
+    debugPrint("Hola desde NXScript: " + scriptName)
+}
+
+func onUpdate(elapsed) {
+    tiempo += elapsed
+    cuadro.angle = tiempo * 90
+}
+
+func onBeatHit() {
+    if (curBeat % 4 == 0) game.camGame.zoom += 0.03
+}
+
+func goodNoteHit(note) {
+    if (note.noteType == "No Animation") return Function_Stop
+}

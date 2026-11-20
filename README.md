@@ -1,3 +1,27 @@
+# Flux Engine
+
+Fork de **Psych Engine 1.0.4** con soporte extra de scripting: además de Lua (`.lua`) y HScript (`.hx`), Flux Engine carga **NXScript** (`.nx` / `.nxs`) y **RuleScript** (`.rhx`).
+
+## Scripting de Flux Engine
+
+| Lenguaje | Extensión | Librería |
+|---|---|---|
+| Lua | `.lua` | linc_luajit (Psych) |
+| HScript | `.hx` | hscript-iris (Psych) |
+| NXScript | `.nx`, `.nxs` | [nxscript 0.5.8](https://github.com/senioritaelizabeth/NxScript) |
+| RuleScript | `.rhx` | [rulescript 0.2.0](https://github.com/Kriptel/RuleScript) + hscript 2.6.0 |
+
+Los scripts nuevos se cargan en los mismos lugares que los `.hx`: `scripts/`, `data/<canción>/`, `stages/`, `characters/`, `custom_notetypes/` y `custom_events/`. Reciben los mismos callbacks (`onCreate`, `onCreatePost`, `onUpdate`, `onBeatHit`, `goodNoteHit`, ...) y las mismas variables (`game`, `FlxG`, `FlxSprite`, `FlxTween`, `PlayState`, `setVar`, `debugPrint`, `Function_Stop`, ...). Corren después de HScript y respetan `Function_StopHScript` / `Function_StopAll`.
+
+- **NXScript**: sus diccionarios `{...}` y funciones se convierten a `null` al pasarlos a Haxe; usa `toHaxe(valor)` para pasarlos (ej. `FlxTween.tween(spr, toHaxe({"alpha": 0}), 1)`). Las funciones del preset (`setVar`, `debugPrint`...) ya lo hacen solas.
+- **RuleScript**: el PlayState es el `superInstance`, así que `boyfriend`, `camGame`, `add(...)`, `health`... se usan directo. Soporta `import ... as`, `using`, propiedades, interpolación `'${x}'`, `??=` y clases en script.
+
+Ejemplos: [`docs/flux-examples/`](docs/flux-examples). Para desactivar un lenguaje, comenta `NXSCRIPT_ALLOWED` o `RULESCRIPT_ALLOWED` en `Project.xml`.
+
+Código: `source/flux/scripting/` (`FluxScript`, `FluxNXScript`, `FluxRuleScript`, `FluxScriptHandler`).
+
+---
+
 ![PsychionalEngineLogo](docs/img/PsychEngineLogoTweak.png)
 
 Engine originally used on [Mind Games Mod](https://gamebanana.com/mods/301107), intended to be a fix for the vanilla version's many issues while keeping the casual play aspect of it. Also aiming to be an easier alternative to newbie coders.

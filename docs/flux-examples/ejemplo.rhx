@@ -1,0 +1,30 @@
+// Flux Engine - ejemplo de RuleScript
+// Ponlo en: mods/TuMod/scripts/ejemplo.rhx  (o data/<cancion>/, stages/, characters/...)
+import flixel.tweens.FlxTween as Tw;
+import flixel.util.FlxColor;
+
+var cuadro:FlxSprite;
+var tiempo:Float = 0;
+
+function onCreatePost() {
+	cuadro = new FlxSprite(50, 50).makeGraphic(120, 120, FlxColor.BLUE);
+	cuadro.cameras = [camHUD]; // campos de PlayState se usan directo
+	add(cuadro);
+
+	Tw.tween(cuadro, {alpha: 0.5}, 2, {onComplete: t -> debugPrint('tween listo')});
+	debugPrint('Hola desde RuleScript: ${PlayState.SONG.song}');
+}
+
+function onUpdate(elapsed:Float) {
+	tiempo += elapsed;
+	cuadro.angle = tiempo * 90;
+}
+
+function onBeatHit() {
+	if (curBeat % 4 == 0) camGame.zoom += 0.03;
+}
+
+function goodNoteHit(note) {
+	if (note.noteType == 'No Animation') return Function_Stop;
+	return null;
+}

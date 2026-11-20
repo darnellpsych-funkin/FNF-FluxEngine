@@ -48,6 +48,11 @@ import psychlua.LuaUtils;
 import psychlua.HScript;
 #end
 
+#if FLUX_SCRIPTS_ALLOWED
+import flux.scripting.FluxScript;
+import flux.scripting.FluxScriptHandler;
+#end
+
 #if HSCRIPT_ALLOWED
 import psychlua.HScript.HScriptInfos;
 import crowplexus.iris.Iris;
@@ -98,6 +103,11 @@ class PlayState extends MusicBeatState
 
 	#if HSCRIPT_ALLOWED
 	public var hscriptArray:Array<HScript> = [];
+	#end
+
+	#if FLUX_SCRIPTS_ALLOWED
+	/** Scripts de NXScript (.nx/.nxs) y RuleScript (.rhx) - Flux Engine */
+	public var fluxScriptArray:Array<FluxScript> = [];
 	#end
 
 	public var BF_X:Float = 770;
@@ -251,7 +261,7 @@ class PlayState extends MusicBeatState
 	public static var instance:PlayState;
 	#if LUA_ALLOWED public var luaArray:Array<FunkinLua> = []; #end
 
-	#if (LUA_ALLOWED || HSCRIPT_ALLOWED)
+	#if (LUA_ALLOWED || HSCRIPT_ALLOWED || FLUX_SCRIPTS_ALLOWED)
 	private var luaDebugGroup:FlxTypedGroup<psychlua.DebugLuaText>;
 	#end
 	public var introSoundsSuffix:String = '';
@@ -392,7 +402,7 @@ class PlayState extends MusicBeatState
 		}
 		if(isPixelStage) introSoundsSuffix = '-pixel';
 
-		#if (LUA_ALLOWED || HSCRIPT_ALLOWED)
+		#if (LUA_ALLOWED || HSCRIPT_ALLOWED || FLUX_SCRIPTS_ALLOWED)
 		luaDebugGroup = new FlxTypedGroup<psychlua.DebugLuaText>();
 		luaDebugGroup.cameras = [camOther];
 		add(luaDebugGroup);
@@ -429,7 +439,7 @@ class PlayState extends MusicBeatState
 			add(boyfriendGroup);
 		}
 		
-		#if (LUA_ALLOWED || HSCRIPT_ALLOWED)
+		#if (LUA_ALLOWED || HSCRIPT_ALLOWED || FLUX_SCRIPTS_ALLOWED)
 		// "SCRIPTS FOLDER" SCRIPTS
 		for (folder in Mods.directoriesWithFile(Paths.getSharedPath(), 'scripts/'))
 			for (file in FileSystem.readDirectory(folder))
@@ -442,6 +452,11 @@ class PlayState extends MusicBeatState
 				#if HSCRIPT_ALLOWED
 				if(file.toLowerCase().endsWith('.hx'))
 					initHScript(folder + file);
+				#end
+
+				#if FLUX_SCRIPTS_ALLOWED
+				if(FluxScriptHandler.isSupported(file))
+					initFluxScript(folder + file);
 				#end
 			}
 		#end
@@ -459,10 +474,11 @@ class PlayState extends MusicBeatState
 				gf.visible = false;
 		}
 		
-		#if (LUA_ALLOWED || HSCRIPT_ALLOWED)
+		#if (LUA_ALLOWED || HSCRIPT_ALLOWED || FLUX_SCRIPTS_ALLOWED)
 		// STAGE SCRIPTS
 		#if LUA_ALLOWED startLuasNamed('stages/' + curStage + '.lua'); #end
 		#if HSCRIPT_ALLOWED startHScriptsNamed('stages/' + curStage + '.hx'); #end
+		#if FLUX_SCRIPTS_ALLOWED startFluxScriptsNamed('stages/' + curStage); #end
 
 		// CHARACTER SCRIPTS
 		if(gf != null) startCharacterScripts(gf.curCharacter);
@@ -582,11 +598,18 @@ class PlayState extends MusicBeatState
 		for (event in eventsPushed)
 			startHScriptsNamed('custom_events/' + event + '.hx');
 		#end
+
+		#if FLUX_SCRIPTS_ALLOWED
+		for (notetype in noteTypes)
+			startFluxScriptsNamed('custom_notetypes/' + notetype);
+		for (event in eventsPushed)
+			startFluxScriptsNamed('custom_events/' + event);
+		#end
 		noteTypes = null;
 		eventsPushed = null;
 
 		// SONG SPECIFIC SCRIPTS
-		#if (LUA_ALLOWED || HSCRIPT_ALLOWED)
+		#if (LUA_ALLOWED || HSCRIPT_ALLOWED || FLUX_SCRIPTS_ALLOWED)
 		for (folder in Mods.directoriesWithFile(Paths.getSharedPath(), 'data/$songName/'))
 			for (file in FileSystem.readDirectory(folder))
 			{
@@ -598,6 +621,11 @@ class PlayState extends MusicBeatState
 				#if HSCRIPT_ALLOWED
 				if(file.toLowerCase().endsWith('.hx'))
 					initHScript(folder + file);
+				#end
+
+				#if FLUX_SCRIPTS_ALLOWED
+				if(FluxScriptHandler.isSupported(file))
+					initFluxScript(folder + file);
 				#end
 			}
 		#end
@@ -688,7 +716,7 @@ class PlayState extends MusicBeatState
 		return playbackRate;
 	}
 
-	#if (LUA_ALLOWED || HSCRIPT_ALLOWED)
+	#if (LUA_ALLOWED || HSCRIPT_ALLOWED || FLUX_SCRIPTS_ALLOWED)
 	public function addTextToDebug(text:String, color:FlxColor) {
 		var newText:psychlua.DebugLuaText = luaDebugGroup.recycle(psychlua.DebugLuaText);
 		newText.text = text;
@@ -811,6 +839,10 @@ class PlayState extends MusicBeatState
 			if(doPush) initHScript(scriptFile);
 		}
 		#end
+
+		#if FLUX_SCRIPTS_ALLOWED
+		startFluxScriptsNamed('characters/' + name);
+		#end
 	}
 
 	public function getLuaObject(tag:String):Dynamic
@@ -873,7 +905,7 @@ class PlayState extends MusicBeatState
 				videoCutscene.play();
 			return videoCutscene;
 		}
-		#if (LUA_ALLOWED || HSCRIPT_ALLOWED)
+		#if (LUA_ALLOWED || HSCRIPT_ALLOWED || FLUX_SCRIPTS_ALLOWED)
 		else addTextToDebug("Video not found: " + fileName, FlxColor.RED);
 		#else
 		else FlxG.log.error("Video not found: " + fileName);
@@ -2288,7 +2320,7 @@ class PlayState extends MusicBeatState
 				{
 					var len:Int = e.message.indexOf('\n') + 1;
 					if(len <= 0) len = e.message.length;
-					#if (LUA_ALLOWED || HSCRIPT_ALLOWED)
+					#if (LUA_ALLOWED || HSCRIPT_ALLOWED || FLUX_SCRIPTS_ALLOWED)
 					addTextToDebug('ERROR ("Set Property" Event) - ' + e.message.substr(0, len), FlxColor.RED);
 					#else
 					FlxG.log.warn('ERROR ("Set Property" Event) - ' + e.message.substr(0, len));
@@ -3170,6 +3202,16 @@ class PlayState extends MusicBeatState
 
 		hscriptArray = null;
 		#end
+
+		#if FLUX_SCRIPTS_ALLOWED
+		for (script in fluxScriptArray)
+			if(script != null)
+			{
+				script.call('onDestroy');
+				script.destroy();
+			}
+		fluxScriptArray = null;
+		#end
 		stagesFunc(function(stage:BaseStage) stage.destroy());
 
 		#if VIDEOS_ALLOWED
@@ -3350,6 +3392,93 @@ class PlayState extends MusicBeatState
 	}
 	#end
 
+	#if FLUX_SCRIPTS_ALLOWED
+	/**
+	 * Busca `path` + cada extensión soportada (.nx, .nxs, .rhx) en mods y en assets.
+	 * Ej: startFluxScriptsNamed('stages/stage') -> stages/stage.nx, stages/stage.rhx...
+	 */
+	public function startFluxScriptsNamed(path:String):Bool
+	{
+		var loaded:Bool = false;
+		for (ext in FluxScriptHandler.getExtensions())
+		{
+			var scriptFile:String = path + ext;
+			#if MODS_ALLOWED
+			var scriptToLoad:String = Paths.modFolders(scriptFile);
+			if(!FileSystem.exists(scriptToLoad))
+				scriptToLoad = Paths.getSharedPath(scriptFile);
+			#else
+			var scriptToLoad:String = Paths.getSharedPath(scriptFile);
+			#end
+
+			if(FileSystem.exists(scriptToLoad) && initFluxScript(scriptToLoad))
+				loaded = true;
+		}
+		return loaded;
+	}
+
+	public function initFluxScript(file:String):Bool
+	{
+		for (script in fluxScriptArray)
+			if(script.origin == file) return false;
+
+		var newScript:FluxScript = FluxScriptHandler.create(file);
+		if(newScript == null) return false;
+
+		fluxScriptArray.push(newScript);
+		newScript.call('onCreate');
+		trace('initialized ${newScript.language} successfully: $file');
+		return true;
+	}
+
+	public function callOnFluxScripts(funcToCall:String, args:Array<Dynamic> = null, ?ignoreStops:Bool = false, exclusions:Array<String> = null, excludeValues:Array<Dynamic> = null):Dynamic {
+		var returnVal:Dynamic = LuaUtils.Function_Continue;
+		if(fluxScriptArray == null || fluxScriptArray.length < 1) return returnVal;
+		if(args == null) args = [];
+		if(exclusions == null) exclusions = [];
+		if(excludeValues == null) excludeValues = [];
+		if(!excludeValues.contains(LuaUtils.Function_Continue)) excludeValues.push(LuaUtils.Function_Continue);
+
+		var closed:Array<FluxScript> = [];
+		for (script in fluxScriptArray)
+		{
+			if(script == null || !script.active)
+			{
+				closed.push(script);
+				continue;
+			}
+			if(exclusions.contains(script.origin) || !script.exists(funcToCall))
+				continue;
+
+			var myValue:Dynamic = script.call(funcToCall, args);
+			if((myValue == LuaUtils.Function_StopHScript || myValue == LuaUtils.Function_StopAll) && !excludeValues.contains(myValue) && !ignoreStops)
+			{
+				returnVal = myValue;
+				break;
+			}
+
+			if(myValue != null && !excludeValues.contains(myValue))
+				returnVal = myValue;
+		}
+
+		for (script in closed)
+			fluxScriptArray.remove(script);
+
+		return returnVal;
+	}
+
+	public function setOnFluxScripts(variable:String, arg:Dynamic, exclusions:Array<String> = null) {
+		if(fluxScriptArray == null) return;
+		if(exclusions == null) exclusions = [];
+		for (script in fluxScriptArray)
+		{
+			if(script == null || exclusions.contains(script.origin))
+				continue;
+			script.set(variable, arg);
+		}
+	}
+	#end
+
 	public function callOnScripts(funcToCall:String, args:Array<Dynamic> = null, ignoreStops = false, exclusions:Array<String> = null, excludeValues:Array<Dynamic> = null):Dynamic {
 		var returnVal:Dynamic = LuaUtils.Function_Continue;
 		if(args == null) args = [];
@@ -3408,10 +3537,6 @@ class PlayState extends MusicBeatState
 		if(excludeValues == null) excludeValues = new Array();
 		excludeValues.push(LuaUtils.Function_Continue);
 
-		var len:Int = hscriptArray.length;
-		if (len < 1)
-			return returnVal;
-
 		for(script in hscriptArray)
 		{
 			@:privateAccess
@@ -3432,6 +3557,16 @@ class PlayState extends MusicBeatState
 				if(myValue != null && !excludeValues.contains(myValue))
 					returnVal = myValue;
 			}
+		}
+		#end
+
+		// Flux Engine: NXScript y RuleScript corren después de HScript
+		#if FLUX_SCRIPTS_ALLOWED
+		if(ignoreStops || (returnVal != LuaUtils.Function_StopHScript && returnVal != LuaUtils.Function_StopAll))
+		{
+			var fluxValue:Dynamic = callOnFluxScripts(funcToCall, args, ignoreStops, exclusions, excludeValues);
+			if(fluxValue != null && fluxValue != LuaUtils.Function_Continue)
+				returnVal = fluxValue;
 		}
 		#end
 
@@ -3465,6 +3600,10 @@ class PlayState extends MusicBeatState
 
 			script.set(variable, arg);
 		}
+		#end
+
+		#if FLUX_SCRIPTS_ALLOWED
+		setOnFluxScripts(variable, arg, exclusions);
 		#end
 	}
 
@@ -3632,7 +3771,7 @@ class PlayState extends MusicBeatState
 				return true;
 			}
 		}
-			#if (LUA_ALLOWED || HSCRIPT_ALLOWED)
+			#if (LUA_ALLOWED || HSCRIPT_ALLOWED || FLUX_SCRIPTS_ALLOWED)
 			addTextToDebug('Missing shader $name .frag AND .vert files!', FlxColor.RED);
 			#else
 			FlxG.log.warn('Missing shader $name .frag AND .vert files!');
