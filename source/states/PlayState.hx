@@ -1325,6 +1325,17 @@ class PlayState extends MusicBeatState
 		opponentVocals = new FlxSound();
 		try
 		{
+			#if FLUX_VSLICE
+			if (songData.needsVoices && flux.vslice.FluxVSlice.isVSlice(songData))
+			{
+				// Flux Engine: voces con los nombres de V-Slice (Voices-bf.ogg, Voices-dad-erect.ogg...)
+				var playerVocals = flux.vslice.FluxVSlice.voices(songData, true);
+				if(playerVocals != null) vocals.loadEmbedded(playerVocals);
+				var oppVocals = flux.vslice.FluxVSlice.voices(songData, false);
+				if(oppVocals != null) opponentVocals.loadEmbedded(oppVocals);
+			}
+			else
+			#end
 			if (songData.needsVoices)
 			{
 				var playerVocals = Paths.voices(songData.song, (boyfriend.vocalsFile == null || boyfriend.vocalsFile.length < 1) ? 'Player' : boyfriend.vocalsFile);
@@ -1346,6 +1357,10 @@ class PlayState extends MusicBeatState
 		inst = new FlxSound();
 		try
 		{
+			#if FLUX_VSLICE
+			if (flux.vslice.FluxVSlice.isVSlice(songData)) inst.loadEmbedded(flux.vslice.FluxVSlice.inst(songData));
+			else
+			#end
 			inst.loadEmbedded(Paths.inst(songData.song));
 		}
 		catch (e:Dynamic) {}
@@ -2332,6 +2347,7 @@ class PlayState extends MusicBeatState
 				FlxG.sound.play(Paths.sound(value1), flValue2);
 		}
 
+		#if FLUX_VSLICE flux.vslice.FluxVSliceEvents.trigger(this, eventName, value1, value2); #end // eventos de V-Slice (ZoomCamera, SetCameraBop)
 		stagesFunc(function(stage:BaseStage) stage.eventCalled(eventName, value1, value2, flValue1, flValue2, strumTime));
 		callOnScripts('onEvent', [eventName, value1, value2, strumTime]);
 	}
@@ -3211,6 +3227,7 @@ class PlayState extends MusicBeatState
 				script.destroy();
 			}
 		fluxScriptArray = null;
+		#if LUA_ALLOWED flux.scripting.FluxLuaFunctions.destroyAll(); #end
 		#end
 		stagesFunc(function(stage:BaseStage) stage.destroy());
 
@@ -3420,7 +3437,7 @@ class PlayState extends MusicBeatState
 	public function initFluxScript(file:String):Bool
 	{
 		for (script in fluxScriptArray)
-			if(script.origin == file) return false;
+			if(script != null && script.active && script.origin == file) return false;
 
 		var newScript:FluxScript = FluxScriptHandler.create(file);
 		if(newScript == null) return false;

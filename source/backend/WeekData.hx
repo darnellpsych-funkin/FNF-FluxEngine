@@ -135,6 +135,11 @@ class WeekData {
 			}
 		}
 		#end
+
+		#if FLUX_VSLICE
+		// Flux Engine: semanas de mods de V-Slice (data/levels/*.json)
+		flux.vslice.FluxVSliceWeeks.addLevels(directories, originalLength, isStoryMode);
+		#end
 	}
 
 	private static function addWeek(weekToCheck:String, path:String, directory:String, i:Int, originalLength:Int)

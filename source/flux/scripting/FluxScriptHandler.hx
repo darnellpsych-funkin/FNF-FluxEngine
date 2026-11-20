@@ -11,13 +11,15 @@ using StringTools;
  * Crea los scripts extra de Flux Engine según la extensión del archivo
  * y les pone las mismas variables/funciones que tiene un .hx de Psych.
  *
- *   .nx  / .nxs  -> NXScript   (define NXSCRIPT_ALLOWED)
- *   .rhx         -> RuleScript (define RULESCRIPT_ALLOWED)
+ *   .nx  / .nxs  -> NXScript     (define NXSCRIPT_ALLOWED)
+ *   .rhx         -> RuleScript   (define RULESCRIPT_ALLOWED)
+ *   .hsp         -> hscript-plus (define HSCRIPT_PLUS_ALLOWED)
  */
 class FluxScriptHandler
 {
 	public static var NX_EXTENSIONS(default, null):Array<String> = ['.nx', '.nxs'];
 	public static var RULE_EXTENSIONS(default, null):Array<String> = ['.rhx'];
+	public static var HSPLUS_EXTENSIONS(default, null):Array<String> = ['.hsp'];
 
 	static var initialized:Bool = false;
 
@@ -27,6 +29,7 @@ class FluxScriptHandler
 		var exts:Array<String> = [];
 		#if NXSCRIPT_ALLOWED exts = exts.concat(NX_EXTENSIONS); #end
 		#if RULESCRIPT_ALLOWED exts = exts.concat(RULE_EXTENSIONS); #end
+		#if HSCRIPT_PLUS_ALLOWED exts = exts.concat(HSPLUS_EXTENSIONS); #end
 		return exts;
 	}
 
@@ -67,33 +70,52 @@ class FluxScriptHandler
 	 */
 	public static function create(path:String):FluxScript
 	{
-		init();
 		if (path == null || !FileSystem.exists(path)) return null;
 
-		var code:String = File.getContent(path);
-		var lower = path.toLowerCase();
-		var script:FluxScript = null;
-
-		#if NXSCRIPT_ALLOWED
-		for (ext in NX_EXTENSIONS)
-			if (lower.endsWith(ext)) script = new FluxNXScript(path, code);
-		#end
-		#if RULESCRIPT_ALLOWED
-		if (script == null)
-			for (ext in RULE_EXTENSIONS)
-				if (lower.endsWith(ext)) script = new FluxRuleScript(path, code, FlxG.state);
-		#end
-
-		if (script == null) return null;
-
+		var modFolder:String = null;
 		#if MODS_ALLOWED
 		var folders:Array<String> = path.replace('\\', '/').split('/');
 		if (folders.length > 1 && folders[0] + '/' == Paths.mods()
 			&& (Mods.currentModDirectory == folders[1] || Mods.getGlobalMods().contains(folders[1])))
-			script.modFolder = folders[1];
+			modFolder = folders[1];
 		#end
 
+		return createFromCode(path, path, File.getContent(path), modFolder);
+	}
+
+	/**
+	 * Crea un script a partir de código. "extOrPath" decide el lenguaje
+	 * (una extensión como ".rhx" o una ruta que termine en ella).
+	 */
+	public static function createFromCode(origin:String, extOrPath:String, code:String, ?modFolder:String, ?extraVars:Map<String, Dynamic>):FluxScript
+	{
+		init();
+		var lower = extOrPath.toLowerCase();
+		var script:FluxScript = null;
+
+		#if NXSCRIPT_ALLOWED
+		for (ext in NX_EXTENSIONS)
+			if (lower.endsWith(ext)) script = new FluxNXScript(origin, code);
+		#end
+		#if RULESCRIPT_ALLOWED
+		if (script == null)
+			for (ext in RULE_EXTENSIONS)
+				if (lower.endsWith(ext)) script = new FluxRuleScript(origin, code, FlxG.state);
+		#end
+		#if HSCRIPT_PLUS_ALLOWED
+		if (script == null)
+			for (ext in HSPLUS_EXTENSIONS)
+				if (lower.endsWith(ext)) script = new FluxHScriptPlus(origin, code);
+		#end
+
+		if (script == null) return null;
+
+		script.modFolder = modFolder;
 		preset(script);
+		if (extraVars != null)
+			for (name => value in extraVars)
+				script.set(name, value);
+
 		if (!script.execute())
 		{
 			script.destroy();
