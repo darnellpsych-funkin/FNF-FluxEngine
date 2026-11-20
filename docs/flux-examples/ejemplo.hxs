@@ -1,0 +1,46 @@
+// HScript expandido de Flux Engine (.hxs). Ponelo en mods/TuMod/scripts/ (o data/<canción>/).
+
+// Una clase propia del script
+class Contador {
+	public var golpes:Int = 0;
+	public function new() {}
+	public function sumar():Int {
+		golpes++;
+		return golpes;
+	}
+}
+
+enum Racha {
+	Nada;
+	Buena(golpes:Int);
+}
+
+static var partidas:Int = 0; // compartida entre .hxs y dura toda la sesión
+var contador = new Contador();
+var texto:FlxText;
+
+function onCreatePost() {
+	partidas++;
+	texto = makeText(20, 120, 0, 'Partida ' + partidas, 24);
+	texto.cameras = [camHUD]; // camHUD es de PlayState: se usa directo
+	add(texto);
+}
+
+function goodNoteHit(note) {
+	if (note.isSustainNote) return;
+	var golpes = contador.sumar();
+	texto.text = describir(golpes > 20 ? Racha.Buena(golpes) : Racha.Nada);
+	if (golpes % 50 == 0) cameraFlash('hud', color('#FFFFFF'), 0.3);
+}
+
+function onBeatHit() {
+	if (curBeat % 4 == 0)
+		tween(texto, {alpha: 0.4}, 0.15, 'quadOut', function(_) texto.alpha = 1);
+}
+
+function describir(racha:Racha):String {
+	return switch (racha) {
+		case Racha.Buena(n): '¡Racha de $n!';
+		default: 'Golpes: ' + contador.golpes;
+	}
+}

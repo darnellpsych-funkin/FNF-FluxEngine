@@ -19,6 +19,11 @@ class FluxScript
 		trace('[${script.language}] ${script.origin}: $message');
 	};
 
+	/** Avisos que no cortan el script (en PlayState salen en amarillo). */
+	public static var onWarning:(script:FluxScript, message:String) -> Void = function(script, message) {
+		trace('[${script.language}] ${script.origin}: $message');
+	};
+
 	/** Ruta del archivo (se usa para exclusiones, igual que HScript.origin) */
 	public var origin:String;
 
@@ -72,6 +77,9 @@ class FluxScript
 	/** Lee una variable global del script */
 	public function get(name:String):Dynamic
 		return null;
+
+	/** El objeto cuyos campos el script usa directo (PlayState, un menú o null). */
+	public function setParentInstance(parent:Dynamic):Void {}
 
 	public function destroy():Void
 	{

@@ -28,7 +28,8 @@ class Mods
 		'weeks',
 		'fonts',
 		'scripts',
-		'achievements'
+		'achievements',
+		'states' // Flux: scripts de menús (mods/states/ no es un mod)
 	];
 
 	private static var globalMods:Array<String> = [];
