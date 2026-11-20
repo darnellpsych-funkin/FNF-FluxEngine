@@ -179,9 +179,10 @@ class FluxScriptHandler
 		script.set('removeVar', function(name:String) {
 			return MusicBeatState.getVariables().remove(name);
 		});
-		script.set('debugPrint', function(text:Dynamic, ?color:Null<Int> = null) {
-			if (PlayState.instance != null)
-				PlayState.instance.addTextToDebug(Std.string(text), color == null ? FlxColor.WHITE : color);
+		script.set('debugPrint', function(text:Dynamic, ?color:Null<Int>) {
+			var textColor:FlxColor = (color != null) ? FlxColor.fromInt(color) : FlxColor.WHITE;
+			if (PlayState.instance != null && FlxG.state == PlayState.instance)
+				PlayState.instance.addTextToDebug(Std.string(text), textColor);
 			else
 				trace(text);
 		});
@@ -206,34 +207,34 @@ class FluxScriptHandler
 		script.set('keyboardPressed', function(name:String) return Reflect.getProperty(FlxG.keys.pressed, name));
 		script.set('keyboardReleased', function(name:String) return Reflect.getProperty(FlxG.keys.justReleased, name));
 
-		script.set('keyJustPressed', function(name:String = '') {
-			switch (name.toLowerCase())
+		script.set('keyJustPressed', function(name:String = ''):Bool {
+			return switch (name.toLowerCase())
 			{
-				case 'left': return Controls.instance.NOTE_LEFT_P;
-				case 'down': return Controls.instance.NOTE_DOWN_P;
-				case 'up': return Controls.instance.NOTE_UP_P;
-				case 'right': return Controls.instance.NOTE_RIGHT_P;
-				default: return Controls.instance.justPressed(name.toLowerCase());
+				case 'left': Controls.instance.NOTE_LEFT_P;
+				case 'down': Controls.instance.NOTE_DOWN_P;
+				case 'up': Controls.instance.NOTE_UP_P;
+				case 'right': Controls.instance.NOTE_RIGHT_P;
+				default: Controls.instance.justPressed(name.toLowerCase());
 			}
 		});
-		script.set('keyPressed', function(name:String = '') {
-			switch (name.toLowerCase())
+		script.set('keyPressed', function(name:String = ''):Bool {
+			return switch (name.toLowerCase())
 			{
-				case 'left': return Controls.instance.NOTE_LEFT;
-				case 'down': return Controls.instance.NOTE_DOWN;
-				case 'up': return Controls.instance.NOTE_UP;
-				case 'right': return Controls.instance.NOTE_RIGHT;
-				default: return Controls.instance.pressed(name.toLowerCase());
+				case 'left': Controls.instance.NOTE_LEFT;
+				case 'down': Controls.instance.NOTE_DOWN;
+				case 'up': Controls.instance.NOTE_UP;
+				case 'right': Controls.instance.NOTE_RIGHT;
+				default: Controls.instance.pressed(name.toLowerCase());
 			}
 		});
-		script.set('keyReleased', function(name:String = '') {
-			switch (name.toLowerCase())
+		script.set('keyReleased', function(name:String = ''):Bool {
+			return switch (name.toLowerCase())
 			{
-				case 'left': return Controls.instance.NOTE_LEFT_R;
-				case 'down': return Controls.instance.NOTE_DOWN_R;
-				case 'up': return Controls.instance.NOTE_UP_R;
-				case 'right': return Controls.instance.NOTE_RIGHT_R;
-				default: return Controls.instance.justReleased(name.toLowerCase());
+				case 'left': Controls.instance.NOTE_LEFT_R;
+				case 'down': Controls.instance.NOTE_DOWN_R;
+				case 'up': Controls.instance.NOTE_UP_R;
+				case 'right': Controls.instance.NOTE_RIGHT_R;
+				default: Controls.instance.justReleased(name.toLowerCase());
 			}
 		});
 	}

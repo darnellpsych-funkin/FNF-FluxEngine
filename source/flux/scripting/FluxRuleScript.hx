@@ -37,7 +37,7 @@ class FluxRuleScript extends FluxScript
 		super(origin, code);
 		language = 'RuleScript';
 
-		script = new RuleScript();
+		script = new RuleScript(new FluxRuleScriptInterp());
 		script.scriptName = origin;
 		script.getParser(HxParser).allowAll();
 		if (parentInstance != null)
@@ -143,6 +143,52 @@ class FluxRuleScript extends FluxScript
 		if (script != null)
 			script.superInstance = null;
 		script = null;
+	}
+}
+/**
+ * Intérprete de RuleScript con dos arreglos para que se comporte como el HScript de Psych:
+ *  - Un campo de PlayState que vale null (ej. `gf` sin GF) devuelve null en vez de
+ *    lanzar "Unknown variable".
+ *  - Si el script declaró su propia variable (ej. `var health`), asignarla no pisa
+ *    el campo de PlayState con el mismo nombre.
+ */
+class FluxRuleScriptInterp extends rulescript.RuleScriptInterp
+{
+	var superFieldMap:Map<String, Bool>;
+	var superFieldOwner:Dynamic;
+
+	function isSuperField(id:String):Bool
+	{
+		if (superInstance == null || superFields == null) return false;
+		if (superFieldOwner != superInstance)
+		{
+			superFieldOwner = superInstance;
+			superFieldMap = new Map();
+			for (field in superFields)
+				superFieldMap.set(field, true);
+		}
+		return superFieldMap.exists(id);
+	}
+
+	override function resolve(id:String):Dynamic
+	{
+		if (!locals.exists(id) && !variables.exists(id) && isSuperField(id))
+			return Reflect.getProperty(superInstance, id);
+		return super.resolve(id);
+	}
+
+	override function setVar(name:String, v:Dynamic)
+	{
+		if (variables.exists(name))
+		{
+			var current:Dynamic = variables.get(name);
+			if (current is rulescript.RuleScriptProperty)
+				cast(current, rulescript.RuleScriptProperty).value = v;
+			else
+				variables.set(name, v);
+			return;
+		}
+		super.setVar(name, v);
 	}
 }
 #end

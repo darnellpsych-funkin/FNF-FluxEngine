@@ -16,6 +16,8 @@ Los scripts nuevos se cargan en los mismos lugares que los `.hx`: `scripts/`, `d
 - **NXScript**: sus diccionarios `{...}` y funciones se convierten a `null` al pasarlos a Haxe; usa `toHaxe(valor)` para pasarlos (ej. `FlxTween.tween(spr, toHaxe({"alpha": 0}), 1)`). Las funciones del preset (`setVar`, `debugPrint`...) ya lo hacen solas.
 - **RuleScript**: el PlayState es el `superInstance`, así que `boyfriend`, `camGame`, `add(...)`, `health`... se usan directo. Soporta `import ... as`, `using`, propiedades, interpolación `'${x}'`, `??=` y clases en script.
 
+Los scripts de `setup/` ya instalan `nxscript`, `rulescript` y `hscript 2.6.0`. Si compilas a mano y ya tenías otra versión de hscript, ejecuta `haxelib set hscript 2.6.0` (RuleScript 0.2.0 no compila con hscript 2.7 o más nuevo).
+
 Ejemplos: [`docs/flux-examples/`](docs/flux-examples). Para desactivar un lenguaje, comenta `NXSCRIPT_ALLOWED` o `RULESCRIPT_ALLOWED` en `Project.xml`.
 
 Código: `source/flux/scripting/` (`FluxScript`, `FluxNXScript`, `FluxRuleScript`, `FluxScriptHandler`).
