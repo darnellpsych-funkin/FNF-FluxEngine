@@ -42,7 +42,7 @@ class FluxScriptHandler
 		return false;
 	}
 
-	static function init()
+	public static function init()
 	{
 		if (initialized) return;
 		initialized = true;

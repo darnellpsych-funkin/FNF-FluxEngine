@@ -154,6 +154,9 @@ class Main extends Sprite
 		Controls.instance = new Controls();
 		ClientPrefs.loadDefaultKeys();
 		#if ACHIEVEMENTS_ALLOWED Achievements.load(); #end
+		#if FLUX_VSLICE_SCRIPTS
+		flux.vslice.modules.FluxVSliceModules.init(); // módulos .hxc de V-Slice (se cargan al crear el primer estado)
+		#end
 		addChild(new FlxGame(game.width, game.height, game.initialState, game.framerate, game.framerate, game.skipSplash, game.startFullscreen));
 
 		#if !mobile
