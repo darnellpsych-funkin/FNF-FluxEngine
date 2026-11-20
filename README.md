@@ -44,7 +44,27 @@ Pon la carpeta del mod de V-Slice dentro de `mods/` (la que tiene `_polymod_meta
 - **Audio** con los nombres de V-Slice: `Inst.ogg`, `Inst-erect.ogg`, `Voices-bf.ogg`, `Voices-dad-erect.ogg`, `Voices-pico-pico.ogg`...
 - **Eventos**: `PlayAnimation`, `ScrollSpeed`, `ZoomCamera` y `SetCameraBop`. Los demás llegan a `onEvent` de los scripts con el valor en JSON.
 
-Todavía no (próximas fases): **personajes** y **escenarios** en formato V-Slice (si el mod no trae versiones de Psych, se usa BF y un escenario vacío), skins de notas (`noteStyle`) y **scripts `.hxc`**. Para desactivar todo esto, comenta `FLUX_VSLICE` en `Project.xml`.
+Todavía no (próximas fases): **personajes** y **escenarios** en formato V-Slice (si el mod no trae versiones de Psych, se usa BF y un escenario vacío) y skins de notas (`noteStyle`). Para desactivar todo esto, comenta `FLUX_VSLICE` en `Project.xml`.
+
+## Módulos de V-Slice (`.hxc`, fase 5)
+
+Flux carga las clases de los `.hxc` que hacen `extends Module`, igual que el `ModuleHandler` de V-Slice. Busca en todos los mods activos al abrir el juego, y otra vez si cambias los mods activos. Esas clases funcionan en cualquier menú y en las canciones, y reciben los mismos eventos que en V-Slice:
+
+- En todo el juego: `onCreate`, `onDestroy`, `onUpdate`, `onStateChangeBegin`/`End`, `onSubStateOpenEnd`/`CloseEnd` y `onFocusLost`/`Gained`.
+- En las canciones: `onSongLoaded`, `onCountdownStart`/`Step`/`End`, `onSongStart`, `onSongEnd`, `onNoteIncoming`, `onNoteHit`, `onNoteMiss`, `onNoteGhostMiss`, `onSongEvent`, `onBeatHit`, `onStepHit`, `onPause`, `onResume` y `onGameOver`.
+
+Con `event.cancel()` se frena lo que haría Psych: un golpe o un fallo no cuentan, una pausa o una muerte no pasan, y un evento no se ejecuta. Eso último solo vale para el efecto del evento: los demás scripts igual lo reciben.
+
+Los nombres de V-Slice se traducen a Psych. Por ejemplo, `PlayState.instance` es el de Psych, y `state.playerStrumline` (`getNotesMayHit`, `hitNote`, `playStatic`...), `state.currentStage.getBoyfriend()`, `state.vocals.playerVolume` y `currentSong.validScore` funcionan. También funcionan en las notas `note.hasBeenHit`, `note.kind`, `note.noteData.getDirection()` y `note.noteData.getMustHitNote()`, y además `sprite.zIndex`, `Save.instance.modOptions`, `ModStore`, `Conductor.instance`, `Paths`, `FunkinSprite`, `Highscore.tallies`, `Scoring` y `Constants`. En el menú de pausa, un módulo puede agregar opciones propias con `currentMenuEntries` y `clearAndAddMenuEntries()`.
+
+Probado con el botplay de snezhok174 y Kai0903: la opción "Enable Botplay" aparece en la pausa, el bot pega todas las notas (también los sustains), no pega las notas de daño y, como en V-Slice, la puntuación no se guarda si usaste el bot. Su esquive automático para los mods de QT se probó con un módulo de prueba.
+
+Límites por ahora:
+- Solo se usan los módulos. Las clases de canciones, escenarios y personajes (`extends Song`, `Stage`, `BaseCharacter`...) se ignoran con un aviso en la consola.
+- Lo que Flux todavía no tiene (por ejemplo el menú de opciones de V-Slice, `OptionsState`/`PreferencesMenu`) no rompe el módulo: el `.hxc` carga igual, la consola dice qué falta y esas partes no hacen nada. Por eso la página de opciones del botplay no aparece.
+- Los errores de un módulo salen en la consola y, si estás jugando, en pantalla, con el archivo y la línea. El mismo error se muestra 3 veces como máximo.
+
+Necesita RuleScript (`RULESCRIPT_ALLOWED`). Para desactivar los módulos, comenta `FLUX_VSLICE_SCRIPTS` en `Project.xml`.
 
 ## Compilar
 
@@ -52,7 +72,7 @@ Los scripts de `setup/` instalan todo, incluidos `nxscript`, `rulescript` y `hsc
 
 Ejemplos: [`docs/flux-examples/`](docs/flux-examples). Para desactivar un lenguaje, comenta `NXSCRIPT_ALLOWED`, `RULESCRIPT_ALLOWED` o `HSCRIPT_PLUS_ALLOWED` en `Project.xml`.
 
-Código: `source/flux/scripting/` (lenguajes y funciones de Lua) y `source/flux/vslice/` (mods de V-Slice).
+Código: `source/flux/scripting/` (lenguajes y funciones de Lua), `source/flux/vslice/` (mods de V-Slice) y `source/flux/vslice/modules/` (módulos `.hxc`).
 
 ---
 

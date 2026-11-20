@@ -30,6 +30,7 @@
 	<define name="HSCRIPT_PLUS_ALLOWED" if="desktop" /> <!-- .hsp (incluido en source/flux/vendor/hsplus, no necesita haxelib) -->
 	<define name="FLUX_SCRIPTS_ALLOWED" if="NXSCRIPT_ALLOWED || RULESCRIPT_ALLOWED || HSCRIPT_PLUS_ALLOWED" />
 	<define name="FLUX_VSLICE" if="MODS_ALLOWED" /> <!-- cargar mods de V-Slice (fase 1: canciones, charts, audio y semanas) -->
+	<define name="FLUX_VSLICE_SCRIPTS" if="FLUX_VSLICE RULESCRIPT_ALLOWED" /> <!-- módulos .hxc de V-Slice (fase 5, usa RuleScript) -->
 	<define name="ACHIEVEMENTS_ALLOWED" />
 	<define name="DISCORD_ALLOWED" />
 	<define name="TRANSLATIONS_ALLOWED" />

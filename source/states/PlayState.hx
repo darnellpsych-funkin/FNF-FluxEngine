@@ -52,6 +52,9 @@ import psychlua.HScript;
 import flux.scripting.FluxScript;
 import flux.scripting.FluxScriptHandler;
 #end
+#if FLUX_VSLICE_SCRIPTS
+import flux.vslice.modules.FluxVSliceModules;
+#end
 
 #if HSCRIPT_ALLOWED
 import psychlua.HScript.HScriptInfos;
@@ -108,6 +111,13 @@ class PlayState extends MusicBeatState
 	#if FLUX_SCRIPTS_ALLOWED
 	/** Scripts de NXScript (.nx/.nxs) y RuleScript (.rhx) - Flux Engine */
 	public var fluxScriptArray:Array<FluxScript> = [];
+	#end
+
+	#if FLUX_VSLICE_SCRIPTS
+	/** Flux (módulos .hxc de V-Slice): si es false no se guarda el puntaje (currentSong.validScore / isBotPlayMode). */
+	public var fluxValidScore:Bool = true;
+	/** Flux: false si alguna canción de la semana no tuvo puntaje válido (no se guarda el de la semana). */
+	public static var fluxCampaignValid:Bool = true;
 	#end
 
 	public var BF_X:Float = 770;
@@ -656,6 +666,7 @@ class PlayState extends MusicBeatState
 
 		stagesFunc(function(stage:BaseStage) stage.createPost());
 		callOnScripts('onCreatePost');
+		#if FLUX_VSLICE_SCRIPTS FluxVSliceModules.onSongLoaded(this); #end
 		
 		var splash:NoteSplash = new NoteSplash();
 		grpNoteSplashes.add(splash);
@@ -995,7 +1006,7 @@ class PlayState extends MusicBeatState
 		seenCutscene = true;
 		inCutscene = false;
 		var ret:Dynamic = callOnScripts('onStartCountdown', null, true);
-		if(ret != LuaUtils.Function_Stop) {
+		if(ret != LuaUtils.Function_Stop #if FLUX_VSLICE_SCRIPTS && FluxVSliceModules.onCountdownStart(this) #end) {
 			if (skipCountdown || startOnTime > 0) skipArrowStartTween = true;
 
 			canPause = true;
@@ -1082,6 +1093,7 @@ class PlayState extends MusicBeatState
 				stagesFunc(function(stage:BaseStage) stage.countdownTick(tick, swagCounter));
 				callOnLuas('onCountdownTick', [swagCounter]);
 				callOnHScript('onCountdownTick', [tick, swagCounter]);
+				#if FLUX_VSLICE_SCRIPTS FluxVSliceModules.onCountdownStep(this, swagCounter); #end
 
 				swagCounter += 1;
 			}, 5);
@@ -1297,6 +1309,7 @@ class PlayState extends MusicBeatState
 		#end
 		setOnScripts('songLength', songLength);
 		callOnScripts('onSongStart');
+		#if FLUX_VSLICE_SCRIPTS FluxVSliceModules.onSongStart(this); #end
 	}
 
 	private var noteTypes:Array<String> = [];
@@ -1649,6 +1662,7 @@ class PlayState extends MusicBeatState
 
 			paused = false;
 			callOnScripts('onResume');
+			#if FLUX_VSLICE_SCRIPTS FluxVSliceModules.onResume(this); #end
 			resetRPC(startTimer != null && startTimer.finished);
 		}
 	}
@@ -1747,7 +1761,7 @@ class PlayState extends MusicBeatState
 		if (controls.PAUSE && startedCountdown && canPause)
 		{
 			var ret:Dynamic = callOnScripts('onPause', null, true);
-			if(ret != LuaUtils.Function_Stop) {
+			if(ret != LuaUtils.Function_Stop #if FLUX_VSLICE_SCRIPTS && FluxVSliceModules.onPause(this) #end) {
 				openPauseMenu();
 			}
 		}
@@ -1832,6 +1846,7 @@ class PlayState extends MusicBeatState
 
 				callOnLuas('onSpawnNote', [notes.members.indexOf(dunceNote), dunceNote.noteData, dunceNote.noteType, dunceNote.isSustainNote, dunceNote.strumTime]);
 				callOnHScript('onSpawnNote', [dunceNote]);
+				#if FLUX_VSLICE_SCRIPTS FluxVSliceModules.onNoteIncoming(this, dunceNote); #end
 
 				var index:Int = unspawnNotes.indexOf(dunceNote);
 				unspawnNotes.splice(index, 1);
@@ -2030,7 +2045,7 @@ class PlayState extends MusicBeatState
 		if (((skipHealthCheck && instakillOnMiss) || health <= 0) && !practiceMode && !isDead && gameOverTimer == null)
 		{
 			var ret:Dynamic = callOnScripts('onGameOver', null, true);
-			if(ret != LuaUtils.Function_Stop)
+			if(ret != LuaUtils.Function_Stop #if FLUX_VSLICE_SCRIPTS && FluxVSliceModules.onGameOver(this) #end)
 			{
 				FlxG.animationTimeScale = 1;
 				boyfriend.stunned = true;
@@ -2110,6 +2125,16 @@ class PlayState extends MusicBeatState
 		var flValue2:Null<Float> = Std.parseFloat(value2);
 		if(Math.isNaN(flValue1)) flValue1 = null;
 		if(Math.isNaN(flValue2)) flValue2 = null;
+
+		#if FLUX_VSLICE_SCRIPTS
+		// los módulos de V-Slice lo reciben primero; si lo cancelan Psych no hace su parte
+		if(!FluxVSliceModules.onSongEvent(this, eventName, value1, value2, strumTime))
+		{
+			stagesFunc(function(stage:BaseStage) stage.eventCalled(eventName, value1, value2, flValue1, flValue2, strumTime));
+			callOnScripts('onEvent', [eventName, value1, value2, strumTime]);
+			return;
+		}
+		#end
 
 		switch(eventName) {
 			case 'Hey!':
@@ -2480,11 +2505,16 @@ class PlayState extends MusicBeatState
 		#end
 
 		var ret:Dynamic = callOnScripts('onEndSong', null, true);
+		#if FLUX_VSLICE_SCRIPTS
+		if(ret != LuaUtils.Function_Stop && !transitioning && !FluxVSliceModules.onSongEnd(this)) ret = LuaUtils.Function_Stop;
+		if(!fluxValidScore) fluxCampaignValid = false;
+		#end
 		if(ret != LuaUtils.Function_Stop && !transitioning)
 		{
 			#if !switch
 			var percent:Float = ratingPercent;
 			if(Math.isNaN(percent)) percent = 0;
+			#if FLUX_VSLICE_SCRIPTS if(fluxValidScore) #end
 			Highscore.saveScore(Song.loadedSongName, songScore, storyDifficulty, percent);
 			#end
 			playbackRate = 1;
@@ -2512,7 +2542,7 @@ class PlayState extends MusicBeatState
 					MusicBeatState.switchState(new StoryMenuState());
 
 					// if ()
-					if(!ClientPrefs.getGameplaySetting('practice') && !ClientPrefs.getGameplaySetting('botplay')) {
+					if(!ClientPrefs.getGameplaySetting('practice') && !ClientPrefs.getGameplaySetting('botplay') #if FLUX_VSLICE_SCRIPTS && fluxCampaignValid #end) {
 						StoryMenuState.weekCompleted.set(WeekData.weeksList[storyWeek], true);
 						Highscore.saveWeekScore(WeekData.getWeekFileName(), campaignScore, storyDifficulty);
 
@@ -2917,6 +2947,9 @@ class PlayState extends MusicBeatState
 	}
 
 	function noteMiss(daNote:Note):Void { //You didn't hit the key and let it go offscreen, also used by Hurt Notes
+		#if FLUX_VSLICE_SCRIPTS
+		if(!FluxVSliceModules.onNoteMiss(this, daNote)) return; // un módulo de V-Slice lo canceló
+		#end
 		//Dupe note remove
 		notes.forEachAlive(function(note:Note) {
 			if (daNote != note && daNote.mustPress && daNote.noteData == note.noteData && daNote.isSustainNote == note.isSustainNote && Math.abs(daNote.strumTime - note.strumTime) < 1)
@@ -2932,6 +2965,9 @@ class PlayState extends MusicBeatState
 	function noteMissPress(direction:Int = 1):Void //You pressed a key when there was no notes to press for this key
 	{
 		if(ClientPrefs.data.ghostTapping) return; //fuck it
+		#if FLUX_VSLICE_SCRIPTS
+		if(!FluxVSliceModules.onGhostMiss(this, direction)) return;
+		#end
 
 		noteMissCommon(direction);
 		FlxG.sound.play(Paths.soundRandom('missnote', 1, 3), FlxG.random.float(0.1, 0.2));
@@ -3026,6 +3062,7 @@ class PlayState extends MusicBeatState
 		if(result != LuaUtils.Function_Stop && result != LuaUtils.Function_StopHScript && result != LuaUtils.Function_StopAll) result = callOnHScript('opponentNoteHitPre', [note]);
 
 		if(result == LuaUtils.Function_Stop) return;
+		#if FLUX_VSLICE_SCRIPTS FluxVSliceModules.onNoteHit(this, note); #end
 
 		if (songName != 'tutorial')
 			camZooming = true;
@@ -3081,6 +3118,9 @@ class PlayState extends MusicBeatState
 		if(result != LuaUtils.Function_Stop && result != LuaUtils.Function_StopHScript && result != LuaUtils.Function_StopAll) result = callOnHScript('goodNoteHitPre', [note]);
 
 		if(result == LuaUtils.Function_Stop) return;
+		#if FLUX_VSLICE_SCRIPTS
+		if(!FluxVSliceModules.onNoteHit(this, note)) return; // un módulo de V-Slice lo canceló
+		#end
 
 		note.wasGoodHit = true;
 
@@ -3267,6 +3307,7 @@ class PlayState extends MusicBeatState
 		lastStepHit = curStep;
 		setOnScripts('curStep', curStep);
 		callOnScripts('onStepHit');
+		#if FLUX_VSLICE_SCRIPTS FluxVSliceModules.onStepHit(this, curBeat, curStep); #end
 	}
 
 	var lastBeatHit:Int = -1;
@@ -3294,6 +3335,7 @@ class PlayState extends MusicBeatState
 
 		setOnScripts('curBeat', curBeat);
 		callOnScripts('onBeatHit');
+		#if FLUX_VSLICE_SCRIPTS FluxVSliceModules.onBeatHit(this, curBeat, curStep); #end
 	}
 
 	public function characterBopper(beat:Int):Void

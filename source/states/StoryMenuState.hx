@@ -322,6 +322,7 @@ class StoryMenuState extends MusicBeatState
 				Song.loadFromJson(PlayState.storyPlaylist[0].toLowerCase() + diffic, PlayState.storyPlaylist[0].toLowerCase());
 				PlayState.campaignScore = 0;
 				PlayState.campaignMisses = 0;
+				#if FLUX_VSLICE_SCRIPTS PlayState.fluxCampaignValid = true; #end
 			}
 			catch(e:Dynamic)
 			{

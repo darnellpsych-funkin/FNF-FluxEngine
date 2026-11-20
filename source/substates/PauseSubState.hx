@@ -30,6 +30,61 @@ class PauseSubState extends MusicBeatSubstate
 
 	public static var songName:String = null;
 
+	#if FLUX_VSLICE_SCRIPTS
+	/**
+	 * Flux (módulos .hxc de V-Slice): las opciones del menú como {text, callback, sprite}.
+	 * Un módulo puede agregar su propia opción con un callback y después llamar
+	 * clearAndAddMenuEntries() (así lo hace el botplay de V-Slice).
+	 */
+	public var currentMenuEntries:Array<Dynamic> = [];
+
+	/** 'Standard' o 'Difficulty', como en V-Slice. */
+	public var currentMode(get, never):String;
+
+	function get_currentMode():String
+		return (menuItems == difficultyChoices) ? 'Difficulty' : 'Standard';
+
+	/** Rehace el menú con lo que haya en currentMenuEntries (sin perder la opción elegida). */
+	public function clearAndAddMenuEntries():Void
+	{
+		var texts:Array<String> = [];
+		for (entry in currentMenuEntries)
+			if (entry != null && entry.text != null)
+				texts.push(Std.string(entry.text));
+
+		if (menuItems == difficultyChoices)
+		{
+			difficultyChoices.splice(0, difficultyChoices.length);
+			for (text in texts) difficultyChoices.push(text);
+		}
+		else
+			menuItems = texts;
+		deleteSkipTimeText(); // regenMenu lo vuelve a crear si está "Skip Time"
+		regenMenu(true);
+	}
+
+	/** PauseSubState.restartPlayState() de V-Slice. */
+	public static function restartPlayState(?state:Dynamic):Void
+		restartSong();
+
+	/** Si la opción elegida tiene callback (la agregó un módulo), lo ejecuta. */
+	function runEntryCallback():Bool
+	{
+		var entry:Dynamic = currentMenuEntries[curSelected];
+		if (entry == null || entry.callback == null || entry.text != menuItems[curSelected])
+			return false;
+		try
+		{
+			Reflect.callMethod(null, entry.callback, []);
+		}
+		catch (e:Dynamic)
+		{
+			trace('[V-Slice] Error en la opción "${entry.text}" del menú de pausa: $e');
+		}
+		return true;
+	}
+	#end
+
 	override function create()
 	{
 		if(Difficulty.list.length < 2) menuItemsOG.remove('Change Difficulty'); //No need to change difficulty if there is only one!
@@ -220,6 +275,9 @@ class PauseSubState extends MusicBeatSubstate
 
 		if (controls.ACCEPT && (cantUnpause <= 0 || !controls.controllerMode))
 		{
+			#if FLUX_VSLICE_SCRIPTS
+			if (runEntryCallback()) return;
+			#end
 			if (menuItems == difficultyChoices)
 			{
 				var songLowercase:String = Paths.formatToSongPath(PlayState.SONG.song);
@@ -367,7 +425,7 @@ class PauseSubState extends MusicBeatSubstate
 		super.destroy();
 	}
 
-	function changeSelection(change:Int = 0):Void
+	public function changeSelection(change:Int = 0 #if FLUX_VSLICE_SCRIPTS , silent:Bool = false #end):Void
 	{
 		curSelected = FlxMath.wrap(curSelected + change, 0, menuItems.length - 1);
 		for (num => item in grpMenuShit.members)
@@ -386,10 +444,15 @@ class PauseSubState extends MusicBeatSubstate
 		}
 		missingText.visible = false;
 		missingTextBG.visible = false;
+		#if FLUX_VSLICE_SCRIPTS if (!silent) #end
 		FlxG.sound.play(Paths.sound('scrollMenu'), 0.4);
 	}
 
-	function regenMenu():Void {
+	function regenMenu(#if FLUX_VSLICE_SCRIPTS keepSelection:Bool = false #end):Void {
+		#if FLUX_VSLICE_SCRIPTS
+		var oldEntries:Array<Dynamic> = currentMenuEntries;
+		currentMenuEntries = [];
+		#end
 		for (i in 0...grpMenuShit.members.length)
 		{
 			var obj:Alphabet = grpMenuShit.members[0];
@@ -404,6 +467,17 @@ class PauseSubState extends MusicBeatSubstate
 			item.targetY = num;
 			grpMenuShit.add(item);
 
+			#if FLUX_VSLICE_SCRIPTS
+			// se conserva el callback de las opciones que agregó un módulo
+			var entry:Dynamic = null;
+			if (oldEntries != null && num < oldEntries.length && oldEntries[num] != null && oldEntries[num].text == str)
+				entry = oldEntries[num];
+			if (entry == null)
+				entry = {text: str, callback: null, sprite: null};
+			entry.sprite = item;
+			currentMenuEntries.push(entry);
+			#end
+
 			if(str == 'Skip Time')
 			{
 				skipTimeText = new FlxText(0, 0, 0, '', 64);
@@ -417,6 +491,14 @@ class PauseSubState extends MusicBeatSubstate
 				updateSkipTimeText();
 			}
 		}
+		#if FLUX_VSLICE_SCRIPTS
+		if (keepSelection)
+		{
+			curSelected = Std.int(Math.max(0, Math.min(curSelected, menuItems.length - 1)));
+			changeSelection(0, true);
+			return;
+		}
+		#end
 		curSelected = 0;
 		changeSelection();
 	}
