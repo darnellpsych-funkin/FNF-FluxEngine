@@ -346,6 +346,9 @@ class FreeplayState extends MusicBeatState
 						var playerVocals:String = getVocalFromCharacter(PlayState.SONG.player1);
 						var loadedVocals = Paths.voices(PlayState.SONG.song, (playerVocals != null && playerVocals.length > 0) ? playerVocals : 'Player');
 						if(loadedVocals == null) loadedVocals = Paths.voices(PlayState.SONG.song);
+						#if FLUX_VSLICE
+						if(flux.vslice.FluxVSlice.isVSlice(PlayState.SONG)) loadedVocals = flux.vslice.FluxVSlice.voices(PlayState.SONG, true);
+						#end
 						
 						if(loadedVocals != null && loadedVocals.length > 0)
 						{
@@ -369,6 +372,9 @@ class FreeplayState extends MusicBeatState
 						//trace('please work...');
 						var oppVocals:String = getVocalFromCharacter(PlayState.SONG.player2);
 						var loadedVocals = Paths.voices(PlayState.SONG.song, (oppVocals != null && oppVocals.length > 0) ? oppVocals : 'Opponent');
+						#if FLUX_VSLICE
+						if(flux.vslice.FluxVSlice.isVSlice(PlayState.SONG)) loadedVocals = flux.vslice.FluxVSlice.voices(PlayState.SONG, false);
+						#end
 						
 						if(loadedVocals != null && loadedVocals.length > 0)
 						{
@@ -389,6 +395,10 @@ class FreeplayState extends MusicBeatState
 					}
 				}
 
+				#if FLUX_VSLICE
+				if(flux.vslice.FluxVSlice.isVSlice(PlayState.SONG)) FlxG.sound.playMusic(flux.vslice.FluxVSlice.inst(PlayState.SONG), 0.8);
+				else
+				#end
 				FlxG.sound.playMusic(Paths.inst(PlayState.SONG.song), 0.8);
 				FlxG.sound.music.pause();
 				instPlaying = curSelected;

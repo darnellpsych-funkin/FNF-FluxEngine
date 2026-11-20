@@ -7,7 +7,12 @@ class MenuItem extends FlxSprite
 	public function new(x:Float, y:Float, weekName:String = '')
 	{
 		super(x, y);
-		loadGraphic(Paths.image('storymenu/' + weekName));
+		var titleImage:String = 'storymenu/' + weekName;
+		#if FLUX_VSLICE
+		var vsliceTitle:String = flux.vslice.FluxVSliceWeeks.titleAssetFor(weekName); // título de un level de V-Slice
+		if(vsliceTitle != null) titleImage = vsliceTitle;
+		#end
+		loadGraphic(Paths.image(titleImage));
 		antialiasing = ClientPrefs.data.antialiasing;
 		//trace('Test added: ' + WeekData.getWeekNumber(weekNum) + ' (' + weekNum + ')');
 	}

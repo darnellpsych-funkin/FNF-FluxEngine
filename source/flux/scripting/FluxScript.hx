@@ -47,6 +47,17 @@ class FluxScript
 	public function execute():Bool
 		return false;
 
+	/**
+	 * Ejecuta más código en el mismo intérprete (las variables y funciones
+	 * anteriores se mantienen). Lo usan runRuleScript/runNXScript desde Lua.
+	 */
+	public function executeCode(newCode:String):Bool
+	{
+		if (!active || newCode == null) return false;
+		code = newCode;
+		return execute();
+	}
+
 	/** ¿Existe una función con ese nombre en el script? */
 	public function exists(name:String):Bool
 		return false;

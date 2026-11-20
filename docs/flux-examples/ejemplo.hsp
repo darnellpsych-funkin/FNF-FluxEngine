@@ -1,0 +1,34 @@
+// Flux Engine - ejemplo de hscript-plus
+// Ponlo en: mods/TuMod/scripts/ejemplo.hsp  (o data/<cancion>/, stages/, characters/...)
+//
+// hscript-plus es una versión vieja de hscript que agrega clases con herencia.
+// No tiene "() -> {}", "?." ni "??": usa "function() {}" y "game." para el PlayState.
+// Dentro de una clase, para cambiar un campo usa "campo = campo + 1" (no "+=").
+
+class Contador {
+	var golpes = 0;
+	function new() {}
+	function sumar() {
+		golpes = golpes + 1;
+		return golpes;
+	}
+}
+
+class ContadorConMensaje extends Contador {
+	function mensaje() {
+		return "Notas tocadas: " + golpes;
+	}
+}
+
+var contador = new ContadorConMensaje();
+
+function goodNoteHit(note) {
+	contador.sumar();
+	if (contador.golpes % 50 == 0)
+		debugPrint(contador.mensaje());
+}
+
+function onBeatHit() {
+	if (curBeat % 4 == 0)
+		game.camHUD.zoom = game.camHUD.zoom + 0.02;
+}

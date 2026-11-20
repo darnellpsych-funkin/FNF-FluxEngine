@@ -1,6 +1,6 @@
 # Flux Engine
 
-Fork de **Psych Engine 1.0.4** con soporte extra de scripting: además de Lua (`.lua`) y HScript (`.hx`), Flux Engine carga **NXScript** (`.nx` / `.nxs`) y **RuleScript** (`.rhx`).
+Fork de **Psych Engine 1.0.4** con más lenguajes de scripting y compatibilidad con mods de **V-Slice**.
 
 ## Scripting de Flux Engine
 
@@ -10,17 +10,49 @@ Fork de **Psych Engine 1.0.4** con soporte extra de scripting: además de Lua (`
 | HScript | `.hx` | hscript-iris (Psych) |
 | NXScript | `.nx`, `.nxs` | [nxscript 0.5.8](https://github.com/senioritaelizabeth/NxScript) |
 | RuleScript | `.rhx` | [rulescript 0.2.0](https://github.com/Kriptel/RuleScript) + hscript 2.6.0 |
+| hscript-plus | `.hsp` | [hscript-plus](https://github.com/DleanJeans/hscript-plus) (incluido en `source/flux/vendor/hsplus`) |
 
-Los scripts nuevos se cargan en los mismos lugares que los `.hx`: `scripts/`, `data/<canción>/`, `stages/`, `characters/`, `custom_notetypes/` y `custom_events/`. Reciben los mismos callbacks (`onCreate`, `onCreatePost`, `onUpdate`, `onBeatHit`, `goodNoteHit`, ...) y las mismas variables (`game`, `FlxG`, `FlxSprite`, `FlxTween`, `PlayState`, `setVar`, `debugPrint`, `Function_Stop`, ...). Corren después de HScript y respetan `Function_StopHScript` / `Function_StopAll`.
+Los scripts nuevos se cargan en los mismos lugares que los `.hx`: `scripts/`, `data/<canción>/`, `stages/`, `characters/`, `custom_notetypes/` y `custom_events/`. Reciben los mismos callbacks (`onCreate`, `onCreatePost`, `onUpdate`, `onBeatHit`, `goodNoteHit`, ...) y las mismas variables (`game`, `FlxG`, `FlxSprite`, `FlxTween`, `PlayState`, `setVar`, `debugPrint`, `Function_Stop`, ...). Corren después de HScript y respetan `Function_StopHScript` / `Function_StopAll`. Para cambiar valores del juego usa `game.` (`game.health`, `game.combo`...).
 
 - **NXScript**: sus diccionarios `{...}` y funciones se convierten a `null` al pasarlos a Haxe; usa `toHaxe(valor)` para pasarlos (ej. `FlxTween.tween(spr, toHaxe({"alpha": 0}), 1)`). Las funciones del preset (`setVar`, `debugPrint`...) ya lo hacen solas.
-- **RuleScript**: el PlayState es el `superInstance`, así que `boyfriend`, `camGame`, `add(...)`, `health`... se usan directo. Soporta `import ... as`, `using`, propiedades, interpolación `'${x}'`, `??=` y clases en script.
+- **RuleScript**: los campos del PlayState (`boyfriend`, `camGame`, `add(...)`...) se pueden leer directo. Soporta `import ... as`, `using`, propiedades, interpolación `'${x}'`, `??=` y clases en script.
+- **hscript-plus**: agrega clases con herencia (`class Jefe extends Enemigo`). Es una versión vieja de hscript (2017): no tiene `() -> {}`, `?.` ni `??`. Dentro de una clase usa `campo = campo + 1` en vez de `+=`. Flux corrige un bug del original que evaluaba dos veces el lado derecho de `a = b`.
 
-Los scripts de `setup/` ya instalan `nxscript`, `rulescript` y `hscript 2.6.0`. Si compilas a mano y ya tenías otra versión de hscript, ejecuta `haxelib set hscript 2.6.0` (RuleScript 0.2.0 no compila con hscript 2.7 o más nuevo).
+### Lua usa los otros lenguajes
 
-Ejemplos: [`docs/flux-examples/`](docs/flux-examples). Para desactivar un lenguaje, comenta `NXSCRIPT_ALLOWED` o `RULESCRIPT_ALLOWED` en `Project.xml`.
+| Función de Lua | Qué hace |
+|---|---|
+| `runRuleScript(código, ?función, ?argumentos)` | Ejecuta código RuleScript (las variables y funciones se mantienen entre llamadas) |
+| `runNXScript(código, ?función, ?argumentos)` | Igual, con NXScript |
+| `runHScriptPlus(código, ?función, ?argumentos)` | Igual, con hscript-plus |
+| `runFluxFunction(lenguaje, función, ?argumentos)` | Llama una función creada antes con `run...` (`"rulescript"`, `"nxscript"` o `"hscriptplus"`) |
+| `addFluxScript(archivo)` / `removeFluxScript(archivo)` | Carga o quita un script `.rhx`, `.nx`, `.nxs` o `.hsp` (la extensión es opcional) |
+| `isFluxScriptRunning(archivo)` / `getRunningFluxScripts()` | Saber qué scripts están corriendo |
+| `callFluxScript(archivo, función, ?argumentos)` | Llama una función de un script de archivo |
+| `getFluxScriptVar(archivo, variable)` / `setFluxScriptVar(archivo, variable, valor)` | Lee o cambia una variable de un script |
+| `callOnFluxScripts(función, ?argumentos)` / `setOnFluxScripts(variable, valor)` | Llama una función o pone una variable en todos los scripts de Flux |
 
-Código: `source/flux/scripting/` (`FluxScript`, `FluxNXScript`, `FluxRuleScript`, `FluxScriptHandler`).
+`callOnHScript` y `setOnHScript` de Psych también llegan a los scripts de Flux.
+
+## Mods de V-Slice (fase 1: canciones)
+
+Pon la carpeta del mod de V-Slice dentro de `mods/` (la que tiene `_polymod_meta.json`). Flux lee:
+
+- **Semanas** (`data/levels/*.json`): salen en Story Mode y Freeplay, con el título y el color del level.
+- **Canciones** (`data/songs/<canción>/<canción>-metadata.json` y `-chart.json`): todas las dificultades, cambios de BPM, cámara (`FocusCamera`) y tipos de nota comunes.
+- **Variaciones**: Erect y Nightmare se suman como dificultades de la canción normal; los mixes que repiten dificultades (Pico Mix, BF Mix...) salen aparte en Freeplay con su nombre.
+- **Audio** con los nombres de V-Slice: `Inst.ogg`, `Inst-erect.ogg`, `Voices-bf.ogg`, `Voices-dad-erect.ogg`, `Voices-pico-pico.ogg`...
+- **Eventos**: `PlayAnimation`, `ScrollSpeed`, `ZoomCamera` y `SetCameraBop`. Los demás llegan a `onEvent` de los scripts con el valor en JSON.
+
+Todavía no (próximas fases): **personajes** y **escenarios** en formato V-Slice (si el mod no trae versiones de Psych, se usa BF y un escenario vacío), skins de notas (`noteStyle`) y **scripts `.hxc`**. Para desactivar todo esto, comenta `FLUX_VSLICE` en `Project.xml`.
+
+## Compilar
+
+Los scripts de `setup/` instalan todo, incluidos `nxscript`, `rulescript` y `hscript 2.6.0`. Si compilas a mano y ya tenías otra versión de hscript, ejecuta `haxelib set hscript 2.6.0` (RuleScript 0.2.0 no compila con hscript 2.7 o más nuevo). Si tienes librerías de Git de otros engines (por ejemplo el Lime de V-Slice), usa una carpeta de librerías propia para Flux: en la carpeta del proyecto ejecuta `haxelib newrepo` y `haxelib install hxcpp 4.3.2`, y después abre `setup/windows.bat` con doble clic.
+
+Ejemplos: [`docs/flux-examples/`](docs/flux-examples). Para desactivar un lenguaje, comenta `NXSCRIPT_ALLOWED`, `RULESCRIPT_ALLOWED` o `HSCRIPT_PLUS_ALLOWED` en `Project.xml`.
+
+Código: `source/flux/scripting/` (lenguajes y funciones de Lua) y `source/flux/vslice/` (mods de V-Slice).
 
 ---
 

@@ -150,7 +150,17 @@ class Song
 			rawData = File.getContent(_lastPath);
 		else
 		#end
+		{
+			#if FLUX_VSLICE
+			// Flux Engine: si no hay chart de Psych, probar con el formato de V-Slice (data/songs/...)
+			if(!Assets.exists(_lastPath))
+			{
+				var vsliceSong:SwagSong = flux.vslice.FluxVSlice.getChart(jsonInput, folder);
+				if(vsliceSong != null) return vsliceSong;
+			}
+			#end
 			rawData = Assets.getText(_lastPath);
+		}
 
 		return rawData != null ? parseJSON(rawData, jsonInput) : null;
 	}
