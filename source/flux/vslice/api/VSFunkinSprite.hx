@@ -12,10 +12,31 @@ import flux.vslice.api.VSliceApi.VSPaths;
 @:keep
 class VSFunkinSprite extends FlxSprite
 {
-	public function new(x:Float = 0, y:Float = 0)
+	public function new(x:Float = 0, y:Float = 0, ?graphic:Dynamic)
 	{
 		super(x, y);
+		if (graphic != null)
+		{
+			// en V-Slice suele ser Paths.image('x'); en Flux eso ya es la imagen
+			if (Std.isOfType(graphic, String))
+				loadTexture(graphic);
+			else
+				loadGraphic(graphic);
+		}
 	}
+
+	/** Precarga una imagen (en Psych las imágenes ya quedan guardadas al cargarlas). */
+	public static function cacheTexture(key:Dynamic):Void
+		flux.vslice.api.VSliceApi.VSFunkinMemory.cacheTexture(key);
+
+	public static function cacheSparrow(key:Dynamic):Void
+		flux.vslice.api.VSliceApi.VSFunkinMemory.cacheTexture(key);
+
+	public static function cachePacker(key:Dynamic):Void
+		flux.vslice.api.VSliceApi.VSFunkinMemory.cacheTexture(key);
+
+	public static function isTextureCached(key:Dynamic):Bool
+		return key != null;
 
 	public static function create(x:Float = 0, y:Float = 0, ?key:String):VSFunkinSprite
 	{

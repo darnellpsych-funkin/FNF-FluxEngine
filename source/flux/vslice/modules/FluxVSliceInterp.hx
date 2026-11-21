@@ -113,6 +113,14 @@ class FluxVSliceInterp extends FluxRuleScriptInterp
 		return super.call(o, f, args);
 	}
 
+	/** `for (x in null)` no hace nada (en vez de cortar todo el script con "Invalid iterator"). */
+	override function makeIterator(v:Dynamic):Iterator<Dynamic>
+	{
+		if (v == null)
+			return [].iterator();
+		return super.makeIterator(v);
+	}
+
 	/** `for (k => v in mapa)` también en C++ (el de RuleScript falla con los Map ahí). */
 	override function makeKeyValueIterator(v:Dynamic):{next:() -> Dynamic, hasNext:() -> Bool}
 	{
@@ -143,6 +151,9 @@ class FluxVSliceInterp extends FluxRuleScriptInterp
 			return new haxe.ds.StringMap<Dynamic>();
 		if (type == VSMissing)
 			error(ECustom('No se puede crear "$cl": ese tipo de V-Slice todavía no existe en Flux'));
+		// new SparrowCharacter('bf') / new BaseCharacter('bf', 'sparrow') de V-Slice -> personaje de Flux
+		if (type == objects.Character && args.length > 0 && Std.isOfType(args[0], String))
+			return flux.vslice.api.VSliceApi.VSCharacterDataParser.fetchCharacter(args[0]);
 		if (type != null && Std.isOfType(type, Class))
 			return Type.createInstance(type, args);
 		return super.cnew(cl, args);

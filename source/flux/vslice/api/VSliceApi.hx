@@ -594,6 +594,126 @@ class VSPaths
 
 	public static function video(key:String):String
 		return Paths.video(key);
+
+	public static function videos(key:String):String
+		return Paths.video(key);
+
+	/** La música de una canción (en Flux es el sonido, como en Psych). */
+	public static function inst(song:String, ?suffix:String, ?withExtension:Bool):Dynamic
+		return FluxVSliceModules.withModFallback(() -> Paths.inst(song));
+
+	public static function voices(song:String, ?suffix:String, ?withExtension:Bool):Dynamic
+		return FluxVSliceModules.withModFallback(() -> Paths.voices(song, (suffix != null && suffix.length > 0) ? suffix : null));
+
+	/** La "biblioteca" de assets de la semana (assets/<carpeta>/) como en Psych. */
+	public static function setCurrentLevel(name:String):Void
+	{
+		if (name != null && name.length > 0)
+			Paths.setCurrentLevel(name);
+	}
+}
+
+/** FlxTweenUtil de V-Slice: pausar y seguir los tweens de un objeto. */
+@:keep
+class VSFlxTweenUtil
+{
+	public static function pauseTween(tween:flixel.tweens.FlxTween):Void
+	{
+		if (tween != null)
+			tween.active = false;
+	}
+
+	public static function resumeTween(tween:flixel.tweens.FlxTween):Void
+	{
+		if (tween != null)
+			tween.active = true;
+	}
+
+	public static function pauseTweensOf(object:Dynamic, ?fieldPaths:Array<String>):Void
+	{
+		if (object != null)
+			@:privateAccess flixel.tweens.FlxTween.globalManager.forEachTweensOf(object, fieldPaths, pauseTween);
+	}
+
+	public static function resumeTweensOf(object:Dynamic, ?fieldPaths:Array<String>):Void
+	{
+		if (object != null)
+			@:privateAccess flixel.tweens.FlxTween.globalManager.forEachTweensOf(object, fieldPaths, resumeTween);
+	}
+}
+
+/** PolymodErrorHandler de V-Slice: los avisos de los mods van a la consola (y a la pantalla). */
+@:keep
+class VSPolymodErrorHandler
+{
+	public static function showAlert(title:String, message:String):Void
+		FluxVSliceModules.reportError(title, message);
+}
+
+/** FunkinMemory de V-Slice: precargar imágenes y sonidos (Psych ya los guarda al cargarlos). */
+@:keep
+class VSFunkinMemory
+{
+	public static function cacheTexture(key:Dynamic):Void
+	{
+		if (key != null && Std.isOfType(key, String))
+			VSPaths.image(cleanImageKey(key));
+	}
+
+	public static function permanentCacheTexture(key:Dynamic):Void
+		cacheTexture(key);
+
+	public static function isTextureCached(key:Dynamic):Bool
+		return key != null;
+
+	public static function cacheSound(key:Dynamic):Void
+	{
+		if (key != null && Std.isOfType(key, String))
+			VSPaths.sound(cleanSoundKey(key));
+	}
+
+	public static function permanentCacheSound(key:Dynamic):Void
+		cacheSound(key);
+
+	public static function purgeTextureCache():Void {}
+
+	public static function purgeSoundCache():Void {}
+
+	public static function preparePurgeTextureCache():Void {}
+
+	public static function preparePurgeSoundCache():Void {}
+
+	/** "assets/images/x.png" o "images/x.png" -> "x" (lo que espera Paths.image de Psych). */
+	static function cleanImageKey(key:String):String
+	{
+		var path:String = VSAssets.contentPath(key);
+		if (path.startsWith('images/'))
+			path = path.substr('images/'.length);
+		if (path.endsWith('.png'))
+			path = path.substr(0, path.length - 4);
+		return path;
+	}
+
+	static function cleanSoundKey(key:String):String
+	{
+		var path:String = VSAssets.contentPath(key);
+		if (path.startsWith('sounds/'))
+			path = path.substr('sounds/'.length);
+		for (ext in ['.ogg', '.mp3', '.wav'])
+			if (path.endsWith(ext))
+				path = path.substr(0, path.length - ext.length);
+		return path;
+	}
+}
+
+/**
+ * Para los `import` de V-Slice que solo son tipos de datos (StageData, SongEventSchema...):
+ * con esto el módulo no avisa que falta algo que no usa.
+ */
+@:keep
+class VSDataType
+{
+	public function new() {}
 }
 
 /** Preferencias de V-Slice -> opciones de Psych (ClientPrefs). */
@@ -644,6 +764,27 @@ class VSPreferences
 
 	static function get_globalOffset():Int
 		return ClientPrefs.data.noteOffset;
+
+	/** Flux muestra los subtítulos de V-Slice siempre. */
+	public static var subtitles(get, never):Bool;
+
+	static function get_subtitles():Bool
+		return true;
+
+	public static var autoPause(get, never):Bool;
+
+	static function get_autoPause():Bool
+		return ClientPrefs.data.autoPause;
+
+	public static var strumlineBackgroundOpacity(get, never):Float;
+
+	static function get_strumlineBackgroundOpacity():Float
+		return 0;
+
+	public static var screenshotFormat(get, never):String;
+
+	static function get_screenshotFormat():String
+		return 'png';
 }
 
 /** FunkinSound de V-Slice (lo básico). */
@@ -928,6 +1069,10 @@ class VSCharacterDataParser
 		});
 	}
 
+	/** parseCharacterData de V-Slice (los datos del personaje). */
+	public static function parseCharacterData(charId:String):Dynamic
+		return fetchCharacterData(charId);
+
 	public static function characterExists(charId:String):Bool
 	{
 		if (charId == null || charId.length == 0)
@@ -980,6 +1125,14 @@ class VSSongEventData
 	public var eventKind:String;
 	public var value:Dynamic;
 
+	/** Los valores como llegan a Psych (el valor de V-Slice va en JSON en value1). */
+	public var value1:String = null;
+
+	public var value2:String = null;
+
+	/** true cuando ya se hizo el evento. */
+	public var handled:Bool = false;
+
 	public function new(time:Float, eventKind:String, value:Dynamic)
 	{
 		this.time = time;
@@ -988,10 +1141,13 @@ class VSSongEventData
 	}
 
 	/** Si ya pasó (V-Slice lo marca al ejecutarlo). */
-	public var activated(get, never):Bool;
+	public var activated(get, set):Bool;
 
 	function get_activated():Bool
-		return Conductor.songPosition >= time;
+		return handled || Conductor.songPosition >= time;
+
+	function set_activated(value:Bool):Bool
+		return handled = value;
 
 	public function getDynamic(key:String):Dynamic
 		return (value != null && Reflect.isObject(value) && !Std.isOfType(value, String)) ? Reflect.field(value, key) : null;
