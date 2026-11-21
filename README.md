@@ -201,7 +201,12 @@ Necesita RuleScript (`RULESCRIPT_ALLOWED`). Para desactivar los módulos, coment
 
 ## Compilar
 
-Los scripts de `setup/` instalan todo, incluidos `nxscript`, `rulescript` y `hscript 2.6.0`. Si compilas a mano y ya tenías otra versión de hscript, ejecuta `haxelib set hscript 2.6.0` (RuleScript 0.2.0 no compila con hscript 2.7 o más nuevo). Si tienes librerías de Git de otros engines (por ejemplo el Lime de V-Slice), usa una carpeta de librerías propia para Flux: en la carpeta del proyecto ejecuta `haxelib newrepo` y `haxelib install hxcpp 4.3.2`, y después abre `setup/windows.bat` con doble clic.
+En Windows:
+
+1. Abre `setup\windows.bat`. La primera vez crea la carpeta `.haxelib` con las librerías de Flux, separadas de las de otros engines, e instala todo (también hxcpp 4.3.2, `nxscript`, `rulescript` y `hscript 2.6.0`).
+2. Abre `art\buildScripts\build_x64.bat`.
+
+Si aparece "Could not load lime.ndll" o "Library lime is not installed", falta el paso 1: se estaban usando las librerías de otro engine (por ejemplo el Lime de Git de V-Slice, que no trae `lime.ndll`). Si compilas a mano en tu carpeta de librerías de siempre, usa `haxelib set hscript 2.6.0` (RuleScript 0.2.0 no compila con hscript 2.7 o más nuevo).
 
 Luau se compila junto con el juego desde `source/flux/vendor/luau` (necesita C++17; en Windows sirve el Visual Studio que instala `setup/windows-msvc.bat`). La máquina virtual de SScript también se compila con el juego (`source/flux/vendor/sscript/ssvm`, C++11). Por eso la primera compilación tarda un poco más.
 
