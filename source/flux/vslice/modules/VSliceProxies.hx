@@ -5,10 +5,13 @@ import backend.Conductor;
 import backend.Paths;
 import flixel.FlxBasic;
 import flixel.group.FlxGroup.FlxTypedGroup;
+import flixel.group.FlxSpriteGroup;
 import objects.Character;
 import objects.Note;
 import objects.StrumNote;
 import states.PlayState;
+
+using StringTools;
 
 /**
  * Objetos "puente" que imitan partes de PlayState de V-Slice usando el
@@ -354,10 +357,118 @@ class VSStage
 			case 'dad' | 'opponent':
 				return game.dad;
 		}
+		if (extraCharacters.exists(id))
+			return extraCharacters.get(id);
 		for (character in [game.boyfriend, game.dad, game.gf])
 			if (character != null && character.curCharacter == id)
 				return character;
+		for (character in extraCharacters)
+			if (character != null && character.curCharacter.toLowerCase() == id.toLowerCase())
+				return character;
 		return null;
+	}
+
+	/** Personajes que agregaron los scripts con addCharacter(..., OTHER), por id. */
+	public var extraCharacters(default, null):Map<String, Character> = new Map<String, Character>();
+
+	/**
+	 * Stage.addCharacter de V-Slice. Con BF, DAD o GF el personaje pasa a ser el de
+	 * Psych (canta las notas, la cámara lo sigue, cambia el ícono) en el lugar del
+	 * escenario. Con OTHER (o nada) queda como un personaje más que baila con la canción.
+	 */
+	public function addCharacter(character:Character, ?type:Dynamic):Void
+	{
+		if (character == null)
+			return;
+		var role:String = roleOf(type);
+		if (role == null)
+		{
+			extraCharacters.set(character.curCharacter, character);
+			if (!game.members.contains(character))
+				game.add(character);
+			#if FLUX_VSLICE
+			// para que refresh() lo ordene por zIndex junto con el escenario
+			if (flux.vslice.FluxVSliceStage.current != null)
+				flux.vslice.FluxVSliceStage.current.setZIndex(character, VSliceAdapter.getZIndex(character));
+			#end
+			character.dance();
+			return;
+		}
+
+		// el lado del jugador mira hacia el otro lado
+		var player:Bool = role == 'bf';
+		if (character.isPlayer != player)
+		{
+			character.isPlayer = player;
+			character.flipX = !character.flipX;
+		}
+
+		var group:FlxSpriteGroup = switch (role)
+		{
+			case 'bf': game.boyfriendGroup;
+			case 'dad': game.dadGroup;
+			default: game.gfGroup;
+		}
+		if (group != null && !group.members.contains(character))
+			group.add(character);
+
+		// el lugar del escenario para ese personaje (como en V-Slice)
+		#if FLUX_VSLICE
+		if (flux.vslice.FluxVSliceStage.current != null)
+			flux.vslice.FluxVSliceStage.current.placeCharacter(character, role);
+		else
+		#end
+		@:privateAccess game.startCharacterPos(character, role == 'dad');
+
+		switch (role)
+		{
+			case 'bf':
+				game.boyfriend = character;
+				game.boyfriendMap.set(character.curCharacter, character);
+				if (game.iconP1 != null)
+					game.iconP1.changeIcon(character.healthIcon);
+				game.setOnScripts('boyfriendName', character.curCharacter);
+			case 'dad':
+				game.dad = character;
+				game.dadMap.set(character.curCharacter, character);
+				if (game.iconP2 != null)
+					game.iconP2.changeIcon(character.healthIcon);
+				game.setOnScripts('dadName', character.curCharacter);
+			default:
+				game.gf = character;
+				game.gfMap.set(character.curCharacter, character);
+				game.setOnScripts('gfName', character.curCharacter);
+		}
+		game.reloadHealthBarColors();
+		character.dance();
+	}
+
+	static function roleOf(type:Dynamic):String
+	{
+		if (type == null)
+			return null;
+		return switch (Std.string(type).toLowerCase())
+		{
+			case 'bf' | 'boyfriend' | 'player': 'bf';
+			case 'dad' | 'opponent': 'dad';
+			case 'gf' | 'girlfriend': 'gf';
+			default: null;
+		}
+	}
+
+	/** Los personajes agregados bailan en los beats, como bf, dad y gf en Psych. */
+	public function beatHit(beat:Int):Void
+	{
+		for (character in extraCharacters)
+		{
+			if (character == null || !character.exists || character.stunned)
+				continue;
+			var anim:String = character.getAnimationName();
+			if (anim != null && anim.startsWith('sing'))
+				continue;
+			if (character.danceEveryNumBeats <= 0 || beat % character.danceEveryNumBeats == 0)
+				character.dance();
+		}
 	}
 
 	/** Props con nombre: en Psych son las variables del PlayState (las de Lua/HScript). */
@@ -367,8 +478,26 @@ class VSStage
 	public function add(object:FlxBasic):Void
 		game.add(object);
 
-	public function remove(object:FlxBasic):Void
-		game.remove(object);
+	public function remove(object:FlxBasic, splice:Bool = false):Void
+	{
+		if (object == null)
+			return;
+		for (id => character in extraCharacters)
+			if (character == object)
+				extraCharacters.remove(id);
+		if (game.members.contains(object))
+			game.remove(object, splice);
+		else
+			for (group in [game.boyfriendGroup, game.dadGroup, game.gfGroup])
+				if (group != null && group.members.contains(cast object))
+					group.remove(cast object, splice);
+	}
+
+	/** Lo que hay en el escenario (en Flux, todo el PlayState). */
+	public var members(get, never):Array<FlxBasic>;
+
+	function get_members():Array<FlxBasic>
+		return game.members;
 
 	public function refresh():Void
 		VSliceAdapter.sortByZIndex(game);

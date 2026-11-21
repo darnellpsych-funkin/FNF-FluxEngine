@@ -250,11 +250,82 @@ class FluxVSlice
 					out.push(psychEvent(time, 'Change Scroll Speed', Std.string(mult), Std.string(seconds)));
 
 				default:
+					// cambio de personaje de un script del mod (ChangeCharacter...): lo hace el "Change Character" de Psych
+					var change:Array<String> = characterChange(name, v);
+					if (change != null)
+					{
+						out.push(psychEvent(time, 'Change Character', change[0], change[1]));
+						continue;
+					}
 					// ZoomCamera, SetCameraBop... los maneja FluxVSliceEvents; el resto llega a onEvent de los scripts
 					out.push(psychEvent(time, name, Std.isOfType(v, String) ? v : Json.stringify(v), ''));
 			}
 		}
 		return out;
+	}
+
+	/** Nombres de los eventos de cambio de personaje que usan los mods de V-Slice (sin espacios, guiones ni mayúsculas). */
+	static var CHARACTER_CHANGE_EVENTS:Array<String> = [
+		'changecharacter', 'characterchange', 'changechar', 'charchange', 'switchcharacter', 'swapcharacter', 'setcharacter'
+	];
+
+	/**
+	 * V-Slice no trae un evento para cambiar personajes: cada mod usa uno de un script,
+	 * casi siempre el "ChangeCharacter" de NebulaStellaNova ({character: 'dad', newchar: 'pico'}).
+	 * Devuelve [personaje de Psych (bf, dad o gf), personaje nuevo] o null si no es uno de esos.
+	 */
+	public static function characterChange(name:String, v:Dynamic):Array<String>
+	{
+		if (name == null || v == null || Std.isOfType(v, String) || Type.typeof(v) != TObject)
+			return null;
+		var key:String = name.toLowerCase();
+		for (c in [' ', '_', '-'])
+			key = key.split(c).join('');
+		if (!CHARACTER_CHANGE_EVENTS.contains(key))
+			return null;
+
+		// a quién se cambia: el primer campo que diga bf, dad o gf
+		var target:String = null;
+		var targetField:String = null;
+		for (field in ['character', 'char', 'target', 'type', 'who', 'slot', 'charType', 'characterType', 'old', 'oldChar', 'value1'])
+		{
+			var role:String = characterRole(Reflect.field(v, field));
+			if (role != null)
+			{
+				target = role;
+				targetField = field;
+				break;
+			}
+		}
+
+		// el personaje nuevo
+		var newChar:String = null;
+		for (field in ['newchar', 'newChar', 'newCharacter', 'new', 'to', 'id', 'charId', 'characterId', 'name', 'value2', 'character', 'char'])
+		{
+			if (field == targetField)
+				continue;
+			var value:Dynamic = Reflect.field(v, field);
+			if (value != null && Std.isOfType(value, String) && (value : String).trim().length > 0)
+			{
+				newChar = (value : String).trim();
+				break;
+			}
+		}
+
+		return (target != null && newChar != null) ? [target, newChar] : null;
+	}
+
+	static function characterRole(value:Dynamic):String
+	{
+		if (value == null)
+			return null;
+		return switch (Std.string(value).toLowerCase().trim())
+		{
+			case 'bf' | 'boyfriend' | 'player' | 'p1' | '0': 'bf';
+			case 'dad' | 'opponent' | 'p2' | '1': 'dad';
+			case 'gf' | 'girlfriend' | 'spectator' | '2': 'gf';
+			default: null;
+		}
 	}
 
 	/**

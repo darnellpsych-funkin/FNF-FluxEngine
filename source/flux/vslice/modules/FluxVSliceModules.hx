@@ -512,7 +512,7 @@ class FluxVSliceModules
 	}
 
 	/** El valor de un evento convertido de V-Slice viene como JSON en value1. */
-	static function eventValue(value1:String, value2:String):Dynamic
+	public static function eventValue(value1:String, value2:String):Dynamic
 	{
 		var v1:String = value1 != null ? value1.trim() : '';
 		var v2:String = value2 != null ? value2.trim() : '';
@@ -543,6 +543,7 @@ class FluxVSliceModules
 
 	public static function onBeatHit(game:PlayState, beat:Int, step:Int):Void
 	{
+		VSliceAdapter.beatHit(game, beat); // los personajes que agregaron los scripts bailan
 		if (hasModules())
 			callEvent(new SongTimeScriptEvent(ScriptEventType.SONG_BEAT_HIT, beat, step));
 	}

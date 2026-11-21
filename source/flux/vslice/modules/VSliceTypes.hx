@@ -114,13 +114,25 @@ class VSliceTypes
 		add(['funkin.play.notes.NoteSprite'], objects.Note);
 		add(['funkin.play.notes.StrumlineNote'], objects.StrumNote);
 		add(['funkin.play.notes.Strumline'], VSStrumline);
-		add(['funkin.play.character.BaseCharacter'], objects.Character);
+		add([
+			'funkin.play.character.BaseCharacter',
+			'funkin.play.character.SparrowCharacter',
+			'funkin.play.character.MultiSparrowCharacter',
+			'funkin.play.character.PackerCharacter',
+			'funkin.play.character.AnimateAtlasCharacter'
+		], objects.Character);
+		add(['funkin.play.character.CharacterDataParser'], VSCharacterDataParser);
+		add(['funkin.play.character.CharacterType', 'funkin.play.character.BaseCharacter.CharacterType'], VSCharacterType);
+		add(['funkin.data.song.SongData.SongEventData', 'funkin.data.song.SongEventData'], VSSongEventData);
 		add(['funkin.play.stage.Stage'], VSStage);
+		add(['funkin.play.song.Song'], VSSong);
 		add(['funkin.audio.VoicesGroup'], VSVoices);
 		add(['funkin.Conductor'], VSConductor);
 		add(['funkin.Highscore', 'funkin.save.Highscore'], VSHighscore);
 		add(['funkin.save.Save'], VSSave);
-		add(['funkin.Paths'], VSPaths);
+		add(['funkin.Paths', 'funkin.graphics.Paths'], VSPaths);
+		// En V-Slice, Polymod pone los archivos de los mods en Assets: aquí se leen del disco
+		add(['funkin.Assets', 'openfl.utils.Assets', 'openfl.Assets', 'lime.utils.Assets'], VSAssets);
 		add(['funkin.Preferences'], VSPreferences);
 		add(['funkin.util.Constants'], VSConstants);
 		add(['funkin.graphics.FunkinSprite'], VSFunkinSprite);

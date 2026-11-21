@@ -2393,7 +2393,7 @@ class PlayState extends MusicBeatState
 				FlxG.sound.play(Paths.sound(value1), flValue2);
 		}
 
-		#if FLUX_VSLICE flux.vslice.FluxVSliceEvents.trigger(this, eventName, value1, value2); #end // eventos de V-Slice (ZoomCamera, SetCameraBop)
+		#if FLUX_VSLICE flux.vslice.FluxVSliceEvents.trigger(this, eventName, value1, value2); #end // eventos de V-Slice (ZoomCamera, SetCameraBop, SetHealthIcon, SetTargetBopSpeed)
 		stagesFunc(function(stage:BaseStage) stage.eventCalled(eventName, value1, value2, flValue1, flValue2, strumTime));
 		callOnScripts('onEvent', [eventName, value1, value2, strumTime]);
 	}

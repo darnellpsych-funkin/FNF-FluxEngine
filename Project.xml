@@ -222,12 +222,12 @@
 
 	<haxedef name="hscriptPos" if="HSCRIPT_ALLOWED" />
 
-	<!-- Flux: clases de Haxe que los .hxs usan por reflexión (si no, el compilador las recorta) -->
-	<haxeflag name="--macro" value="keep('IntIterator')" if="HSCRIPT_IMPROVED_ALLOWED" />
-	<haxeflag name="--macro" value="keep('EReg')" if="HSCRIPT_IMPROVED_ALLOWED" />
-	<haxeflag name="--macro" value="keep('StringTools')" if="HSCRIPT_IMPROVED_ALLOWED" />
-	<haxeflag name="--macro" value="keep('Lambda')" if="HSCRIPT_IMPROVED_ALLOWED" />
-	<haxeflag name="--macro" value="keep('DateTools')" if="HSCRIPT_IMPROVED_ALLOWED" />
+	<!-- Flux: clases de Haxe que los .hxs y los .hxc usan por reflexión (si no, el compilador las recorta) -->
+	<haxeflag name="--macro" value="keep('IntIterator')" if="HSCRIPT_IMPROVED_ALLOWED || FLUX_VSLICE_SCRIPTS" />
+	<haxeflag name="--macro" value="keep('EReg')" if="HSCRIPT_IMPROVED_ALLOWED || FLUX_VSLICE_SCRIPTS" />
+	<haxeflag name="--macro" value="keep('StringTools')" if="HSCRIPT_IMPROVED_ALLOWED || FLUX_VSLICE_SCRIPTS" />
+	<haxeflag name="--macro" value="keep('Lambda')" if="HSCRIPT_IMPROVED_ALLOWED || FLUX_VSLICE_SCRIPTS" />
+	<haxeflag name="--macro" value="keep('DateTools')" if="HSCRIPT_IMPROVED_ALLOWED || FLUX_VSLICE_SCRIPTS" />
 	<haxedef name="CUSTOM_CLASSES" if="HXS_FLIXEL_CLASSES" />
 	<haxeflag name="--macro" value="flux.vendor.hsimproved.macros.ClassExtendMacro.init()" if="HXS_FLIXEL_CLASSES" />
 
