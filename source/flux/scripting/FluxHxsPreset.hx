@@ -356,7 +356,12 @@ class FluxHxsPreset
 				game.triggerEvent(name, value1, value2, Conductor.songPosition);
 		});
 		script.set('importScript', function(path:String):Bool {
-			var ext:String = script.language == 'Luau' ? '.luau' : '.hxs';
+			var ext:String = switch (script.language)
+			{
+				case 'Luau': '.luau';
+				case 'SScript': '.ss';
+				default: '.hxs';
+			};
 			var file:String = findFile(path);
 			if (file == null && !path.endsWith(ext))
 				file = findFile(path + ext);
@@ -453,7 +458,8 @@ class FluxHxsPreset
 		return cls;
 	}
 
-	static function stateOf(target:Dynamic):FlxState
+	/** Un estado por nombre ("MainMenuState", "options.OptionsState" o un menú hecho con script). */
+	public static function stateOf(target:Dynamic):FlxState
 	{
 		if (target == null)
 			return null;

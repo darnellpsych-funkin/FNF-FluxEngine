@@ -9,11 +9,14 @@ using StringTools;
  * Scripts de Flux fuera de las canciones (sobre todo .hxs, pero sirve con
  * cualquier lenguaje de Flux):
  *
- *  - Globales: `scripts/global/` del mod (por ejemplo `mods/MiMod/scripts/global/fps.hxs`).
- *    Corren siempre, en todos los menús y en las canciones.
+ *  - Globales: los scripts con una "g" al final de la extensión en `scripts/`
+ *    (`.hxsg`, `.luaug`, `.ssg`, `.rhxg`, `.nxg`, `.hspg` y `.luag` para Lua), y
+ *    cualquier script de Flux en `scripts/global/` (por ejemplo `mods/MiMod/scripts/global/fps.hxs`).
+ *    Corren siempre, en todos los menús y en las canciones, sin reiniciarse.
  *    Funciones: onCreate, onStateCreate(estado), onStateCreatePost(estado),
  *    onStateSwitch(estado), onUpdate(elapsed), onBeatHit(beat), onStepHit(step),
- *    onFocusLost, onFocus.
+ *    onFocusLost, onFocus. En las canciones también reciben los callbacks de la
+ *    canción (goodNoteHit, onSongStart, onEvent...; los .luag con los argumentos de Lua).
  *
  *  - De estado: `states/<NombreDelEstado>` del mod, por ejemplo
  *    `mods/MiMod/states/MainMenuState.hxs`. Corren mientras ese menú está abierto
@@ -84,7 +87,8 @@ class FluxStateScripts
 	{
 		reloadGlobals();
 		for (script in globalScripts)
-			script.set('game', state);
+			if (script != null && script.active)
+				script.set('game', state);
 		callGlobals('onStateCreate', [state]);
 
 		var name:String = stateNameOf(state);
@@ -137,13 +141,29 @@ class FluxStateScripts
 
 	// ----- Carga -----
 
+	/**
+	 * Callbacks que los globales ya reciben de acá (no se les vuelven a mandar desde PlayState).
+	 */
+	static final OWN_CALLBACKS:Array<String> = [
+		'onCreate', 'onUpdate', 'onBeatHit', 'onStepHit', 'onDestroy', 'onFocus', 'onFocusLost',
+		'onStateCreate', 'onStateCreatePost', 'onStateSwitch'
+	];
+
+	/** ¿PlayState le tiene que mandar este callback a los scripts globales? */
+	public static function forwardsToGlobals(name:String):Bool
+		return !OWN_CALLBACKS.contains(name);
+
 	static function reloadGlobals():Void
 	{
-		var folders:Array<String> = directories('scripts/global/');
 		var files:Array<String> = [];
-		for (folder in folders)
-			for (file in listScripts(folder))
-				files.push(file);
+		for (folder in directories('scripts/global/'))
+			for (file in listScripts(folder, true))
+				if (!files.contains(file))
+					files.push(file);
+		for (folder in directories('scripts/'))
+			for (file in listGlobalScripts(folder))
+				if (!files.contains(file))
+					files.push(file);
 		var signature:String = files.join('|');
 		if (signature == globalSignature)
 			return;
@@ -159,7 +179,7 @@ class FluxStateScripts
 
 		for (file in files)
 		{
-			var script:FluxScript = FluxScriptHandler.create(file);
+			var script:FluxScript = FluxScriptHandler.isGlobalScript(file) ? FluxScriptHandler.createGlobal(file) : FluxScriptHandler.create(file);
 			if (script == null)
 				continue;
 			script.setParentInstance(null); // no pertenece a ningún estado
@@ -195,7 +215,7 @@ class FluxStateScripts
 		return list;
 	}
 
-	static function listScripts(folder:String):Array<String>
+	static function listScripts(folder:String, includeGlobal:Bool = false):Array<String>
 	{
 		var result:Array<String> = [];
 		if (!FileSystem.exists(folder) || !FileSystem.isDirectory(folder))
@@ -203,7 +223,21 @@ class FluxStateScripts
 		var entries:Array<String> = FileSystem.readDirectory(folder);
 		entries.sort(function(a:String, b:String):Int return a < b ? -1 : (a > b ? 1 : 0));
 		for (entry in entries)
-			if (FluxScriptHandler.isSupported(entry))
+			if (FluxScriptHandler.isSupported(entry) || (includeGlobal && FluxScriptHandler.isGlobalScript(entry)))
+				result.push(folder + entry);
+		return result;
+	}
+
+	/** Los .hxsg, .luaug, .ssg, .luag... de una carpeta */
+	static function listGlobalScripts(folder:String):Array<String>
+	{
+		var result:Array<String> = [];
+		if (!FileSystem.exists(folder) || !FileSystem.isDirectory(folder))
+			return result;
+		var entries:Array<String> = FileSystem.readDirectory(folder);
+		entries.sort(function(a:String, b:String):Int return a < b ? -1 : (a > b ? 1 : 0));
+		for (entry in entries)
+			if (FluxScriptHandler.isGlobalScript(entry))
 				result.push(folder + entry);
 		return result;
 	}

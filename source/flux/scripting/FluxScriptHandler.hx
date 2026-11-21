@@ -16,6 +16,11 @@ using StringTools;
  *   .hsp         -> hscript-plus (define HSCRIPT_PLUS_ALLOWED)
  *   .hxs         -> hscript-improved de Codename, con preset expandido (define HSCRIPT_IMPROVED_ALLOWED)
  *   .luau        -> Luau, el Lua de Roblox, con el mismo preset que los .hxs (define LUAU_ALLOWED)
+ *   .ss          -> SScript 24, con el mismo preset que los .hxs (define SSCRIPT_ALLOWED)
+ *
+ * Versiones globales: la misma extensión con una "g" al final (.hxsg, .luaug, .ssg,
+ * .rhxg, .nxg, .nxsg, .hspg) y .luag para Lua. Corren siempre, en todos los menús
+ * y canciones (ver FluxStateScripts y FluxLuaGlobal).
  */
 class FluxScriptHandler
 {
@@ -24,6 +29,9 @@ class FluxScriptHandler
 	public static var HSPLUS_EXTENSIONS(default, null):Array<String> = ['.hsp'];
 	public static var HXS_EXTENSIONS(default, null):Array<String> = ['.hxs'];
 	public static var LUAU_EXTENSIONS(default, null):Array<String> = ['.luau'];
+	public static var SS_EXTENSIONS(default, null):Array<String> = ['.ss'];
+	/** Lua global (FluxLuaGlobal) */
+	public static var LUA_GLOBAL_EXTENSION(default, null):String = '.luag';
 
 	static var initialized:Bool = false;
 
@@ -36,7 +44,66 @@ class FluxScriptHandler
 		#if HSCRIPT_PLUS_ALLOWED exts = exts.concat(HSPLUS_EXTENSIONS); #end
 		#if HSCRIPT_IMPROVED_ALLOWED exts = exts.concat(HXS_EXTENSIONS); #end
 		#if LUAU_ALLOWED exts = exts.concat(LUAU_EXTENSIONS); #end
+		#if SSCRIPT_ALLOWED exts = exts.concat(SS_EXTENSIONS); #end
 		return exts;
+	}
+
+	/** Extensiones de los scripts globales: las de arriba con una "g" (.hxsg, .luaug...) y .luag */
+	public static function getGlobalExtensions():Array<String>
+	{
+		var exts:Array<String> = [for (ext in getExtensions()) ext + 'g'];
+		#if LUA_GLOBAL_ALLOWED exts.push(LUA_GLOBAL_EXTENSION); #end
+		return exts;
+	}
+
+	public static function isGlobalScript(file:String):Bool
+	{
+		if (file == null) return false;
+		var lower = file.toLowerCase();
+		for (ext in getGlobalExtensions())
+			if (lower.endsWith(ext)) return true;
+		return false;
+	}
+
+	/** Crea un script global (.hxsg, .luaug, .ssg, .luag...). Devuelve null si no se pudo. */
+	public static function createGlobal(path:String):FluxScript
+	{
+		if (path == null || !FileSystem.exists(path)) return null;
+		init();
+		var lower = path.toLowerCase();
+		var modFolder:String = modFolderOf(path);
+
+		#if LUA_GLOBAL_ALLOWED
+		if (lower.endsWith(LUA_GLOBAL_EXTENSION))
+		{
+			var lua = new FluxLuaGlobal(path, File.getContent(path));
+			lua.modFolder = modFolder;
+			lua.set('modFolder', modFolder);
+			if (!lua.execute())
+			{
+				lua.destroy();
+				return null;
+			}
+			return lua;
+		}
+		#end
+
+		for (ext in getExtensions())
+			if (lower.endsWith(ext + 'g'))
+				return createFromCode(path, ext, File.getContent(path), modFolder);
+		return null;
+	}
+
+	/** Carpeta del mod si el archivo está en mods/<Mod>/ */
+	public static function modFolderOf(path:String):String
+	{
+		#if MODS_ALLOWED
+		var folders:Array<String> = path.replace('\\', '/').split('/');
+		if (folders.length > 1 && folders[0] + '/' == Paths.mods()
+			&& (Mods.currentModDirectory == folders[1] || Mods.getGlobalMods().contains(folders[1])))
+			return folders[1];
+		#end
+		return null;
 	}
 
 	public static function isSupported(file:String):Bool
@@ -90,15 +157,7 @@ class FluxScriptHandler
 	{
 		if (path == null || !FileSystem.exists(path)) return null;
 
-		var modFolder:String = null;
-		#if MODS_ALLOWED
-		var folders:Array<String> = path.replace('\\', '/').split('/');
-		if (folders.length > 1 && folders[0] + '/' == Paths.mods()
-			&& (Mods.currentModDirectory == folders[1] || Mods.getGlobalMods().contains(folders[1])))
-			modFolder = folders[1];
-		#end
-
-		return createFromCode(path, path, File.getContent(path), modFolder);
+		return createFromCode(path, path, File.getContent(path), modFolderOf(path));
 	}
 
 	/**
@@ -135,6 +194,11 @@ class FluxScriptHandler
 			for (ext in LUAU_EXTENSIONS)
 				if (lower.endsWith(ext)) script = new FluxLuau(origin, code);
 		#end
+		#if SSCRIPT_ALLOWED
+		if (script == null)
+			for (ext in SS_EXTENSIONS)
+				if (lower.endsWith(ext)) script = new FluxSScript(origin, code, FlxG.state);
+		#end
 
 		if (script == null) return null;
 
@@ -145,6 +209,9 @@ class FluxScriptHandler
 		#end
 		#if LUAU_ALLOWED
 		if (script is FluxLuau) FluxHxsPreset.apply(script);
+		#end
+		#if SSCRIPT_ALLOWED
+		if (script is FluxSScript) FluxHxsPreset.apply(script);
 		#end
 		if (extraVars != null)
 			for (name => value in extraVars)

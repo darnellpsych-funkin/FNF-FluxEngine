@@ -5,6 +5,12 @@ class CallbackHandler
 {
 	public static inline function call(l:State, fname:String):Int
 	{
+		// Flux Engine: los .luag tienen sus propias funciones
+		#if LUA_GLOBAL_ALLOWED
+		var luaGlobal = flux.scripting.FluxLuaGlobal.ofState(l);
+		if(luaGlobal != null) return luaGlobal.handleCallback(l, fname);
+		#end
+
 		try
 		{
 			//trace('calling $fname');
@@ -20,6 +26,7 @@ class CallbackHandler
 				if(last == null || last.lua != l)
 				{
 					//trace('looping thru scripts');
+					if(PlayState.instance != null) // Flux Engine: puede no haber canción
 					for (script in PlayState.instance.luaArray)
 						if(script != FunkinLua.lastCalledScript && script != null && script.lua == l)
 						{

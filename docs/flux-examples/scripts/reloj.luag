@@ -1,0 +1,30 @@
+-- reloj.luag: Lua global. Va en mods/TuMod/scripts/ y corre en todos los menús y canciones
+-- sin reiniciarse. Muestra la hora y cuenta las notas que tocaste en toda la sesión.
+
+local notas = 0
+
+function onStateCreatePost(estado)
+	-- cada menú empieza vacío, así que el texto se crea de nuevo en cada uno
+	makeLuaText('reloj', '', 400, screenWidth - 410, 8)
+	setTextAlignment('reloj', 'right')
+	setTextSize('reloj', 18)
+	addLuaText('reloj')
+end
+
+function onUpdate(elapsed)
+	if luaTextExists('reloj') then
+		setTextString('reloj', os.date('%H:%M:%S') .. '   notas: ' .. notas)
+	end
+
+	-- en cualquier menú (no en las canciones): F7 vuelve al menú principal
+	if not inSong and curState ~= 'MainMenuState' and keyboardJustPressed('F7') then
+		switchState('MainMenuState')
+	end
+end
+
+-- solo llega en las canciones, igual que en un .lua normal
+function goodNoteHit(id, direction, noteType, isSustainNote)
+	if not isSustainNote then
+		notas = notas + 1
+	end
+end
