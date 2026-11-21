@@ -84,6 +84,8 @@ class VSliceTypes
 
 		// --- módulos y eventos ---
 		add(['funkin.modding.module.Module'], Module);
+		add(['funkin.play.notes.notekind.NoteKind', 'funkin.play.notes.notekind.ScriptedNoteKind'], flux.vslice.api.NoteKind);
+		add(['funkin.play.notes.notekind.NoteKindManager'], flux.vslice.api.NoteKind.VSNoteKindManager);
 		add(['funkin.modding.module.ModuleHandler'], VSModuleHandler);
 		add(['funkin.modding.ModStore'], VSModStore);
 		add(['funkin.modding.events.ScriptEventDispatcher'], VSScriptEventDispatcher);

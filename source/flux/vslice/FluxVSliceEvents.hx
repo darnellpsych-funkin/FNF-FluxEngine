@@ -2,7 +2,12 @@ package flux.vslice;
 
 #if FLUX_VSLICE
 import haxe.Json;
+import flixel.text.FlxText;
+import flixel.text.FlxText.FlxTextAlign;
+import flixel.text.FlxText.FlxTextBorderStyle;
 import flixel.tweens.FlxTween;
+import flixel.util.FlxColor;
+import flixel.util.FlxTimer;
 import psychlua.LuaUtils;
 
 /**
@@ -11,6 +16,7 @@ import psychlua.LuaUtils;
  *   SetCameraBop      {rate (beats), intensity}
  *   SetHealthIcon     {char: 0 | 1, id}
  *   SetTargetBopSpeed {target, rate (beats)}
+ *   Subtitles         {lyrics, lyrics2, duration (beats)}: subtítulos abajo de la pantalla
  * PlayAnimation, ScrollSpeed y los cambios de personaje (ChangeCharacter...) se
  * convierten a "Play Animation", "Change Scroll Speed" y "Change Character" al
  * cargar el chart (ver FluxVSlice).
@@ -38,7 +44,7 @@ class FluxVSliceEvents
 				// "direct" (por defecto en V-Slice) = zoom absoluto; "stage" = relativo al zoom del escenario
 				var target:Float = (v.mode == 'stage') ? stageZoom * zoom : zoom;
 				var steps:Float = v.duration != null ? v.duration : 4;
-				var ease:String = v.ease != null ? Std.string(v.ease) : 'linear';
+				var ease:String = easeName(v);
 
 				if (zoomTween != null) zoomTween.cancel();
 				if (ease.toUpperCase() == 'INSTANT' || steps <= 0)
@@ -62,6 +68,16 @@ class FluxVSliceEvents
 				var intensity:Float = v.intensity != null ? v.intensity : 1.015;
 				// Psych hace el "bop" en cada sección; se ajusta la fuerza (rate 0 = sin bop)
 				game.camZoomingMult = rate <= 0 ? 0 : Math.max(0, (intensity - 1) / 0.015);
+
+			case 'Subtitles':
+				// {lyrics, lyrics2, duration (beats)}: el texto abajo de la pantalla
+				var v:Dynamic = parse(value1);
+				if (v == null) return;
+				var line1:String = v.lyrics != null ? Std.string(v.lyrics) : '';
+				var line2:String = v.lyrics2 != null ? Std.string(v.lyrics2) : '';
+				var beats:Float = v.duration != null ? v.duration : 4;
+				var text:String = (line1.length > 0 && line2.length > 0) ? '$line1\n$line2' : line1 + line2;
+				showSubtitle(game, text, beats * Conductor.crochet / 1000 / game.playbackRate);
 
 			case 'SetHealthIcon':
 				// {char: 0 (jugador) | 1 (oponente), id: "tankman-bloody"}
@@ -95,6 +111,46 @@ class FluxVSliceEvents
 					if (prop != null) prop.danceEvery = rate;
 				}
 		}
+	}
+
+	// ----- subtítulos -----
+
+	static var subtitle:FlxText;
+	static var subtitleTimer:FlxTimer;
+
+	static function showSubtitle(game:PlayState, text:String, seconds:Float):Void
+	{
+		if (subtitle == null || !game.members.contains(subtitle))
+		{
+			subtitle = new FlxText(100, 0, FlxG.width - 200, '', 32);
+			subtitle.setFormat(Paths.font('vcr.ttf'), 32, FlxColor.WHITE, FlxTextAlign.CENTER, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+			subtitle.borderSize = 2;
+			subtitle.scrollFactor.set();
+			subtitle.cameras = [game.camOther];
+			game.add(subtitle);
+		}
+		if (subtitleTimer != null)
+			subtitleTimer.cancel();
+
+		subtitle.text = text;
+		subtitle.visible = text.length > 0;
+		subtitle.y = FlxG.height * 0.72 - subtitle.height / 2;
+		if (subtitle.visible && seconds > 0)
+			subtitleTimer = new FlxTimer().start(seconds, function(_) {
+				subtitle.visible = false;
+				subtitleTimer = null;
+			});
+	}
+
+	/** El ease de V-Slice: "circ" + easeDir "Out" = "circOut" (los de Psych/Flixel). */
+	static function easeName(v:Dynamic):String
+	{
+		var ease:String = v.ease != null ? Std.string(v.ease) : 'linear';
+		var lower:String = ease.toLowerCase();
+		var hasDirection:Bool = lower.endsWith('in') || lower.endsWith('out');
+		if (v.easeDir != null && lower != 'instant' && lower != 'linear' && !hasDirection)
+			ease += Std.string(v.easeDir);
+		return ease;
 	}
 
 	static function parse(value:String):Dynamic
