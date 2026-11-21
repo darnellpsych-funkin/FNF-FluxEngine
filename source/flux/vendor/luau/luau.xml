@@ -1,0 +1,103 @@
+<xml>
+	<!--
+		Luau (https://github.com/luau-lang/luau, licencia MIT: LICENSE.txt y lua_LICENSE.txt)
+		compilado dentro del juego para los scripts .luau de Flux Engine.
+		Lo incluye flux.scripting.FluxLuau con @:buildXml (ver flux/scripting/luau/LuauBuild.hx).
+
+		- Va en su propio grupo de archivos: sus headers (lua.h, lualib.h...) nunca se
+		  mezclan con los de LuaJIT que usa Psych para los .lua.
+		- Luau necesita C++17. hxcpp 4.3 agrega "-std=c++11" a los .cpp en Linux/Mac/MinGW,
+		  así que cada .cpp de Luau se compila desde un .cxx de la carpeta cxx/ (a los .cxx
+		  hxcpp no les agrega esas opciones) y el C++17 se pide acá.
+	-->
+	<files id="flux_luau" dir="${FLUX_LUAU_PATH}" cxx_standard="17">
+		<compilerflag value="-I${FLUX_LUAU_PATH}Common/include" />
+		<compilerflag value="-I${FLUX_LUAU_PATH}Ast/include" />
+		<compilerflag value="-I${FLUX_LUAU_PATH}Bytecode/include" />
+		<compilerflag value="-I${FLUX_LUAU_PATH}Compiler/include" />
+		<compilerflag value="-I${FLUX_LUAU_PATH}VM/include" />
+		<compilerflag value="-I${FLUX_LUAU_PATH}bridge" />
+
+		<!-- Visual Studio (MSVC) -->
+		<compilerflag value="/std:c++17" if="windows" unless="mingw" />
+		<compilerflag value="-D_CRT_SECURE_NO_WARNINGS" if="windows" unless="mingw" />
+		<compilerflag value="${ABI}" if="windows ABI" unless="mingw" />
+		<!-- GCC / Clang (Linux, Mac, MinGW) -->
+		<compilerflag value="-std=c++17" unless="windows" />
+		<compilerflag value="-std=c++17" if="mingw" />
+		<compilerflag value="-frtti" unless="windows" />
+		<compilerflag value="-frtti" if="mingw" />
+		<compilerflag value="-fno-math-errno" unless="windows" />
+
+		<file name="cxx/Common_BytecodeWire.cxx"><depend name="${FLUX_LUAU_PATH}Common/src/BytecodeWire.cpp" /></file>
+		<file name="cxx/Common_StringUtils.cxx"><depend name="${FLUX_LUAU_PATH}Common/src/StringUtils.cpp" /></file>
+		<file name="cxx/Common_TimeTrace.cxx"><depend name="${FLUX_LUAU_PATH}Common/src/TimeTrace.cpp" /></file>
+		<file name="cxx/Ast_Allocator.cxx"><depend name="${FLUX_LUAU_PATH}Ast/src/Allocator.cpp" /></file>
+		<file name="cxx/Ast_Ast.cxx"><depend name="${FLUX_LUAU_PATH}Ast/src/Ast.cpp" /></file>
+		<file name="cxx/Ast_Confusables.cxx"><depend name="${FLUX_LUAU_PATH}Ast/src/Confusables.cpp" /></file>
+		<file name="cxx/Ast_Cst.cxx"><depend name="${FLUX_LUAU_PATH}Ast/src/Cst.cpp" /></file>
+		<file name="cxx/Ast_Lexer.cxx"><depend name="${FLUX_LUAU_PATH}Ast/src/Lexer.cpp" /></file>
+		<file name="cxx/Ast_Location.cxx"><depend name="${FLUX_LUAU_PATH}Ast/src/Location.cpp" /></file>
+		<file name="cxx/Ast_Parser.cxx"><depend name="${FLUX_LUAU_PATH}Ast/src/Parser.cpp" /></file>
+		<file name="cxx/Ast_PrettyPrinter.cxx"><depend name="${FLUX_LUAU_PATH}Ast/src/PrettyPrinter.cpp" /></file>
+		<file name="cxx/Bytecode_BytecodeBuilder.cxx"><depend name="${FLUX_LUAU_PATH}Bytecode/src/BytecodeBuilder.cpp" /></file>
+		<file name="cxx/Bytecode_BytecodeDump.cxx"><depend name="${FLUX_LUAU_PATH}Bytecode/src/BytecodeDump.cpp" /></file>
+		<file name="cxx/Bytecode_BytecodeGraph.cxx"><depend name="${FLUX_LUAU_PATH}Bytecode/src/BytecodeGraph.cpp" /></file>
+		<file name="cxx/Bytecode_Sccp.cxx"><depend name="${FLUX_LUAU_PATH}Bytecode/src/Sccp.cpp" /></file>
+		<file name="cxx/Compiler_BuiltinFolding.cxx"><depend name="${FLUX_LUAU_PATH}Compiler/src/BuiltinFolding.cpp" /></file>
+		<file name="cxx/Compiler_Builtins.cxx"><depend name="${FLUX_LUAU_PATH}Compiler/src/Builtins.cpp" /></file>
+		<file name="cxx/Compiler_Compiler.cxx"><depend name="${FLUX_LUAU_PATH}Compiler/src/Compiler.cpp" /></file>
+		<file name="cxx/Compiler_ConstantFolding.cxx"><depend name="${FLUX_LUAU_PATH}Compiler/src/ConstantFolding.cpp" /></file>
+		<file name="cxx/Compiler_CostModel.cxx"><depend name="${FLUX_LUAU_PATH}Compiler/src/CostModel.cpp" /></file>
+		<file name="cxx/Compiler_TableShape.cxx"><depend name="${FLUX_LUAU_PATH}Compiler/src/TableShape.cpp" /></file>
+		<file name="cxx/Compiler_Types.cxx"><depend name="${FLUX_LUAU_PATH}Compiler/src/Types.cpp" /></file>
+		<file name="cxx/Compiler_ValueTracking.cxx"><depend name="${FLUX_LUAU_PATH}Compiler/src/ValueTracking.cpp" /></file>
+		<file name="cxx/Compiler_lcode.cxx"><depend name="${FLUX_LUAU_PATH}Compiler/src/lcode.cpp" /></file>
+		<file name="cxx/VM_lapi.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/lapi.cpp" /></file>
+		<file name="cxx/VM_laux.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/laux.cpp" /></file>
+		<file name="cxx/VM_lbaselib.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/lbaselib.cpp" /></file>
+		<file name="cxx/VM_lbitlib.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/lbitlib.cpp" /></file>
+		<file name="cxx/VM_lbuffer.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/lbuffer.cpp" /></file>
+		<file name="cxx/VM_lbuflib.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/lbuflib.cpp" /></file>
+		<file name="cxx/VM_lbuiltins.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/lbuiltins.cpp" /></file>
+		<file name="cxx/VM_lclass.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/lclass.cpp" /></file>
+		<file name="cxx/VM_lclasslib.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/lclasslib.cpp" /></file>
+		<file name="cxx/VM_lcorolib.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/lcorolib.cpp" /></file>
+		<file name="cxx/VM_ldblib.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/ldblib.cpp" /></file>
+		<file name="cxx/VM_ldebug.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/ldebug.cpp" /></file>
+		<file name="cxx/VM_ldo.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/ldo.cpp" /></file>
+		<file name="cxx/VM_lfunc.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/lfunc.cpp" /></file>
+		<file name="cxx/VM_lgc.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/lgc.cpp" /></file>
+		<file name="cxx/VM_lgcdebug.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/lgcdebug.cpp" /></file>
+		<file name="cxx/VM_linit.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/linit.cpp" /></file>
+		<file name="cxx/VM_lmathlib.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/lmathlib.cpp" /></file>
+		<file name="cxx/VM_lmem.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/lmem.cpp" /></file>
+		<file name="cxx/VM_lnumprint.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/lnumprint.cpp" /></file>
+		<file name="cxx/VM_lobject.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/lobject.cpp" /></file>
+		<file name="cxx/VM_loslib.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/loslib.cpp" /></file>
+		<file name="cxx/VM_lperf.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/lperf.cpp" /></file>
+		<file name="cxx/VM_lstate.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/lstate.cpp" /></file>
+		<file name="cxx/VM_lstring.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/lstring.cpp" /></file>
+		<file name="cxx/VM_lstrlib.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/lstrlib.cpp" /></file>
+		<file name="cxx/VM_ltable.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/ltable.cpp" /></file>
+		<file name="cxx/VM_ltablib.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/ltablib.cpp" /></file>
+		<file name="cxx/VM_ltm.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/ltm.cpp" /></file>
+		<file name="cxx/VM_ludata.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/ludata.cpp" /></file>
+		<file name="cxx/VM_lutf8lib.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/lutf8lib.cpp" /></file>
+		<file name="cxx/VM_lveclib.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/lveclib.cpp" /></file>
+		<file name="cxx/VM_lvector.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/lvector.cpp" /></file>
+		<file name="cxx/VM_lvmexecute.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/lvmexecute.cpp" /></file>
+		<file name="cxx/VM_lvmload.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/lvmload.cpp" /></file>
+		<file name="cxx/VM_lvmutils.cxx"><depend name="${FLUX_LUAU_PATH}VM/src/lvmutils.cpp" /></file>
+		<file name="bridge/flux_luau_bridge.cxx"><depend name="${FLUX_LUAU_PATH}bridge/flux_luau_bridge.h" /></file>
+	</files>
+
+	<!-- El código de hxcpp solo ve flux_luau_bridge.h (sin nada de Luau adentro) -->
+	<files id="haxe">
+		<compilerflag value="-I${FLUX_LUAU_PATH}bridge" />
+	</files>
+
+	<target id="haxe">
+		<files id="flux_luau" />
+	</target>
+</xml>

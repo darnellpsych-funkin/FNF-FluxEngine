@@ -31,7 +31,8 @@
 	<define name="HSCRIPT_IMPROVED_ALLOWED" if="desktop" /> <!-- .hxs: hscript-improved de Codename (incluido en source/flux/vendor/hsimproved) -->
 	<!-- Experimental: clases de .hxs que heredan de clases de Flixel (class MiSprite extends FlxSprite). La compilación tarda más. -->
 	<!-- <define name="HXS_FLIXEL_CLASSES" if="HSCRIPT_IMPROVED_ALLOWED" /> -->
-	<define name="FLUX_SCRIPTS_ALLOWED" if="NXSCRIPT_ALLOWED || RULESCRIPT_ALLOWED || HSCRIPT_PLUS_ALLOWED || HSCRIPT_IMPROVED_ALLOWED" />
+	<define name="LUAU_ALLOWED" if="desktop" /> <!-- .luau: Luau, el Lua de Roblox, compilado dentro del juego (source/flux/vendor/luau) -->
+	<define name="FLUX_SCRIPTS_ALLOWED" if="NXSCRIPT_ALLOWED || RULESCRIPT_ALLOWED || HSCRIPT_PLUS_ALLOWED || HSCRIPT_IMPROVED_ALLOWED || LUAU_ALLOWED" />
 	<define name="FLUX_VSLICE" if="MODS_ALLOWED" /> <!-- cargar mods de V-Slice (fase 1: canciones, charts, audio y semanas) -->
 	<define name="FLUX_VSLICE_SCRIPTS" if="FLUX_VSLICE RULESCRIPT_ALLOWED" /> <!-- módulos .hxc de V-Slice (fase 5, usa RuleScript) -->
 	<define name="ACHIEVEMENTS_ALLOWED" />
