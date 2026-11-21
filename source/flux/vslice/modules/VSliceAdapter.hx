@@ -74,6 +74,8 @@ class VSliceAdapter
 		if (f == 'zIndex' && Std.isOfType(o, FlxBasic))
 		{
 			zIndexes.set(cast o, Std.int(value));
+			if (flux.vslice.FluxVSliceStage.current != null) // escenario de V-Slice: también para su refresh()
+				flux.vslice.FluxVSliceStage.current.setZIndex(cast o, Std.int(value));
 			return true;
 		}
 		if (Std.isOfType(o, PlayState))
@@ -321,13 +323,24 @@ class VSliceAdapter
 	// ----- zIndex -----
 
 	public static function getZIndex(object:FlxBasic):Int
+	{
+		var stage = flux.vslice.FluxVSliceStage.current;
+		if (stage != null && stage.hasZIndex(object))
+			return stage.zIndexOf(object);
 		return zIndexes.exists(object) ? zIndexes.get(object) : 0;
+	}
 
 	/** V-Slice ordena los objetos por zIndex con refresh(); el orden entre iguales se mantiene. */
 	public static function sortByZIndex(group:Dynamic):Void
 	{
 		if (group == null || !Std.isOfType(group, FlxTypedGroup))
 			return;
+		var stage = flux.vslice.FluxVSliceStage.current;
+		if (stage != null && group == stage.game)
+		{
+			stage.refresh(); // ordena solo el escenario; el HUD y lo de Lua quedan donde estaban
+			return;
+		}
 		var typed:FlxTypedGroup<FlxBasic> = cast group;
 		// sort() de Flixel ordena el arreglo real (y es estable)
 		typed.sort(function(order:Int, a:FlxBasic, b:FlxBasic):Int {

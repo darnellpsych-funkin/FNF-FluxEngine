@@ -81,6 +81,16 @@ class Character extends FlxSprite
 	public var originalFlipX:Bool = false;
 	public var editorIsPlayer:Null<Bool> = null;
 
+	#if FLUX_VSLICE
+	/** Flux Engine: el JSON de V-Slice (data/characters/<id>.json) si el personaje vino de ahí */
+	public var vsliceData:Dynamic = null;
+	/** Offsets de V-Slice de cada animación. Se aplican al dibujar, multiplicados por la escala. */
+	public var vsliceAnimOffsets:Map<String, Array<Float>> = new Map();
+	/** "offsets" del personaje en V-Slice (globalOffsets) */
+	public var vsliceGlobalOffsets:Array<Float> = [0, 0];
+	public var vsliceCurrentOffsets(default, null):Array<Float> = [0, 0];
+	#end
+
 	public function new(x:Float, y:Float, ?character:String = 'bf', ?isPlayer:Bool = false)
 	{
 		super(x, y);
@@ -109,7 +119,21 @@ class Character extends FlxSprite
 		curCharacter = character;
 		var characterPath:String = 'characters/$character.json';
 
+		#if FLUX_VSLICE
+		vsliceData = null;
+		vsliceAnimOffsets = new Map();
+		vsliceGlobalOffsets = [0, 0];
+		vsliceCurrentOffsets = [0, 0];
+		var vslice:Dynamic = null;
+		#end
+
 		var path:String = Paths.getPath(characterPath, TEXT);
+		#if FLUX_VSLICE
+		// Flux Engine: si no hay personaje de Psych, se busca el de V-Slice (data/characters/<id>.json)
+		if (!#if MODS_ALLOWED FileSystem.exists(path) #else Assets.exists(path) #end)
+			vslice = flux.vslice.FluxVSliceCharacters.find(character);
+		if (vslice == null)
+		#end
 		#if MODS_ALLOWED
 		if (!FileSystem.exists(path))
 		#else
@@ -124,6 +148,11 @@ class Character extends FlxSprite
 
 		try
 		{
+			#if FLUX_VSLICE
+			if (vslice != null)
+				loadVSliceCharacter(vslice);
+			else
+			#end
 			#if MODS_ALLOWED
 			loadCharacterFile(Json.parse(File.getContent(path)));
 			#else
@@ -138,6 +167,15 @@ class Character extends FlxSprite
 		skipDance = false;
 		hasMissAnimations = hasAnimation('singLEFTmiss') || hasAnimation('singDOWNmiss') || hasAnimation('singUPmiss') || hasAnimation('singRIGHTmiss');
 		recalculateDanceIdle();
+		#if FLUX_VSLICE
+		if (vsliceData != null)
+		{
+			// danceEvery de V-Slice (0 = no baila nunca)
+			var every:Float = vsliceData.danceEvery != null ? vsliceData.danceEvery : 1.0;
+			if (every <= 0) skipDance = true;
+			else danceEveryNumBeats = Std.int(Math.max(1, Math.round(every)));
+		}
+		#end
 		dance();
 	}
 
@@ -377,6 +415,14 @@ class Character extends FlxSprite
 
 	public function playAnim(AnimName:String, Force:Bool = false, Reversed:Bool = false, Frame:Int = 0):Void
 	{
+		#if FLUX_VSLICE
+		if (vsliceData != null)
+		{
+			// como V-Slice: "singLEFT-alt" que no existe -> "singLEFT"
+			AnimName = vsliceAnimationName(AnimName);
+			if (AnimName == null) return;
+		}
+		#end
 		specialAnim = false;
 		if(!isAnimateAtlas)
 		{
@@ -393,6 +439,13 @@ class Character extends FlxSprite
 		{
 			var daOffset = animOffsets.get(AnimName);
 			offset.set(daOffset[0], daOffset[1]);
+			#if FLUX_VSLICE
+			if (vsliceData != null)
+			{
+				var vsliceOffset:Array<Float> = vsliceAnimOffsets.get(AnimName);
+				vsliceCurrentOffsets = vsliceOffset != null ? vsliceOffset : [0, 0];
+			}
+			#end
 		}
 		//else offset.set(0, 0);
 
@@ -457,6 +510,122 @@ class Character extends FlxSprite
 	{
 		animOffsets[name] = [x, y];
 	}
+
+	#if FLUX_VSLICE
+	/**
+	 * Flux Engine: carga un personaje con el formato de V-Slice (sparrow, multisparrow o packer).
+	 * Los offsets de las animaciones funcionan como en V-Slice: `offset` queda el del hitbox
+	 * y el de la animación se resta al dibujar, multiplicado por la escala (getScreenPosition).
+	 */
+	function loadVSliceCharacter(data:Dynamic):Void
+	{
+		isAnimateAtlas = false;
+		vsliceData = data;
+
+		var renderType:String = data.renderType != null ? Std.string(data.renderType) : 'sparrow';
+		var assetPath:String = Std.string(data.assetPath);
+		var anims:Array<Dynamic> = Std.isOfType(data.animations, Array) ? data.animations : [];
+
+		scale.set(1, 1);
+		updateHitbox();
+
+		var keys:Array<String> = [assetPath];
+		if (renderType == 'multisparrow')
+			for (anim in anims)
+				if (anim.assetPath != null && !keys.contains(Std.string(anim.assetPath)))
+					keys.push(Std.string(anim.assetPath));
+		switch (renderType)
+		{
+			case 'packer':
+				frames = Paths.getPackerAtlas(assetPath);
+			case 'animateatlas' | 'multianimateatlas':
+				trace('[Flux V-Slice] $curCharacter: los personajes "$renderType" todavía no funcionan en Flux');
+				frames = Paths.getMultiAtlas(keys);
+			default:
+				frames = Paths.getMultiAtlas(keys);
+		}
+		imageFile = keys.join(',');
+
+		for (anim in anims)
+		{
+			if (anim.name == null || anim.prefix == null) continue;
+			var name:String = Std.string(anim.name);
+			var prefix:String = Std.string(anim.prefix);
+			var fps:Int = anim.frameRate != null ? Std.int(anim.frameRate) : 24;
+			var loop:Bool = (anim.looped == true);
+			var indices:Array<Int> = [];
+			if (Std.isOfType(anim.frameIndices, Array))
+				for (index in (anim.frameIndices : Array<Dynamic>)) indices.push(Std.int(index));
+
+			if (indices.length > 0)
+				animation.addByIndices(name, prefix, indices, '', fps, loop, anim.flipX == true, anim.flipY == true);
+			else
+				animation.addByPrefix(name, prefix, fps, loop, anim.flipX == true, anim.flipY == true);
+			if (!animation.exists(name)) continue; // el prefijo no está en el atlas
+
+			var offsets:Array<Dynamic> = Std.isOfType(anim.offsets, Array) ? anim.offsets : [];
+			var offsetX:Float = offsets.length > 0 ? offsets[0] : 0;
+			var offsetY:Float = offsets.length > 1 ? offsets[1] : 0;
+			vsliceAnimOffsets.set(name, [offsetX, offsetY]);
+			animationsArray.push({anim: name, name: prefix, fps: fps, loop: loop, indices: indices, offsets: [Std.int(offsetX), Std.int(offsetY)]});
+		}
+
+		var globalOffsets:Array<Dynamic> = Std.isOfType(data.offsets, Array) ? data.offsets : [];
+		vsliceGlobalOffsets = [globalOffsets.length > 0 ? globalOffsets[0] : 0, globalOffsets.length > 1 ? globalOffsets[1] : 0];
+
+		// como resetCharacter de V-Slice: el hitbox se mide con la primera animación de baile
+		jsonScale = data.scale != null ? data.scale : 1.0;
+		scale.set(jsonScale, jsonScale);
+		var start:String = data.startingAnimation != null ? Std.string(data.startingAnimation) : 'idle';
+		if (!animation.exists(start)) start = animation.exists('danceLeft') ? 'danceLeft' : 'idle';
+		if (animation.exists(start)) animation.play(start, true);
+		updateHitbox();
+		refreshVSliceOffsets();
+
+		positionArray = [0, 0];
+		var cameraOffsets:Array<Dynamic> = Std.isOfType(data.cameraOffsets, Array) ? data.cameraOffsets : [];
+		cameraPosition = [cameraOffsets.length > 0 ? cameraOffsets[0] : 0, cameraOffsets.length > 1 ? cameraOffsets[1] : 0];
+
+		healthIcon = (data.healthIcon != null && data.healthIcon.id != null) ? Std.string(data.healthIcon.id) : curCharacter;
+		singDuration = (data.singTime != null ? data.singTime : 8.0) / 1.1; // V-Slice cuenta pasos, Psych pasos * 1.1
+		originalFlipX = (data.flipX == true);
+		flipX = (originalFlipX != isPlayer);
+		healthColorArray = isPlayer ? [102, 255, 51] : [255, 0, 0]; // los colores de la barra de vida de V-Slice
+		vocalsFile = '';
+		noAntialiasing = (data.isPixel == true);
+		antialiasing = ClientPrefs.data.antialiasing ? !noAntialiasing : false;
+		editorIsPlayer = null;
+	}
+
+	/** Cada animación usa el offset del hitbox (el de V-Slice se aplica al dibujar). Llamar después de updateHitbox(). */
+	public function refreshVSliceOffsets():Void
+	{
+		for (name in vsliceAnimOffsets.keys())
+			addOffset(name, offset.x, offset.y);
+	}
+
+	/** Bopper.correctAnimationName de V-Slice: si "singLEFT-alt" no existe, prueba "singLEFT". */
+	function vsliceAnimationName(name:String):String
+	{
+		while (name != null && !hasAnimation(name))
+		{
+			var dash:Int = name.lastIndexOf('-');
+			name = dash > 0 ? name.substring(0, dash) : null;
+		}
+		return name;
+	}
+
+	override public function getScreenPosition(?result:FlxPoint, ?camera:FlxCamera):FlxPoint
+	{
+		var output:FlxPoint = super.getScreenPosition(result, camera);
+		if (vsliceData != null)
+		{
+			output.x -= (vsliceCurrentOffsets[0] - vsliceGlobalOffsets[0]) * scale.x;
+			output.y -= (vsliceCurrentOffsets[1] - vsliceGlobalOffsets[1]) * scale.y;
+		}
+		return output;
+	}
+	#end
 
 	public function quickAnimAdd(name:String, anim:String)
 	{
