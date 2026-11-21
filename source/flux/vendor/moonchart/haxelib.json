@@ -1,0 +1,12 @@
+{
+  "name": "moonchart",
+  "url" : "https://github.com/MaybeMaru/moonchart",
+  "license": "MIT",
+  "tags": ["haxe", "fnf", "osu", "quaver", "stepmania", "guitarhero", "midi"],
+  "description": "An easy way to manage rhythm game chart formats.",
+  "version": "0.5.1",
+  "classPath": "src",
+  "releasenote": "Multiple community bugfixes and improved format customization.",
+  "contributors": ["MaybeMaru"],
+  "dependencies": {}
+}

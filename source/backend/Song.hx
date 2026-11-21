@@ -159,6 +159,18 @@ class Song
 				if(vsliceSong != null) return vsliceSong;
 			}
 			#end
+			#if MOONCHART_ALLOWED
+			// Flux Engine: charts de osu!mania, StepMania, Quaver y Codename (Moonchart)
+			if(!Assets.exists(_lastPath))
+			{
+				var moonSong:SwagSong = flux.moonchart.FluxMoonchart.getChart(jsonInput, folder);
+				if(moonSong != null)
+				{
+					_lastPath = flux.moonchart.FluxMoonchart.lastChartPath; // el editor guarda al lado del original
+					return moonSong;
+				}
+			}
+			#end
 			rawData = Assets.getText(_lastPath);
 		}
 

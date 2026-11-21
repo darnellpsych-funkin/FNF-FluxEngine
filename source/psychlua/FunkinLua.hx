@@ -1560,6 +1560,7 @@ class FunkinLua {
 		#if TRANSLATIONS_ALLOWED Language.addLuaCallbacks(lua); #end
 		HScript.implement(this);
 		#if FLUX_SCRIPTS_ALLOWED flux.scripting.FluxLuaFunctions.implement(this); #end // Flux Engine: Lua usa RuleScript/NXScript/hscript-plus
+		#if MODCHARTS_ALLOWED flux.modchart.FluxModchart.implement(this); #end // Flux Engine: modcharts (FunkinModchart)
 		#if flxanimate FlxAnimateFunctions.implement(this); #end
 		ReflectionFunctions.implement(this);
 		TextFunctions.implement(this);

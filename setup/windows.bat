@@ -12,6 +12,7 @@ if not exist ".haxelib\" (
 )
 @echo on
 haxelib install hxcpp 4.3.2
+haxelib install hxcpp-debug-server
 haxelib install lime 8.1.2
 haxelib install openfl 9.3.3
 haxelib install flixel 5.6.1

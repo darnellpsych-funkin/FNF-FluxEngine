@@ -212,10 +212,20 @@ class Paths
 		return returnSound('music/$key', modsAllowed);
 
 	inline static public function inst(song:String, ?modsAllowed:Bool = true):Sound
+	{
+		#if MOONCHART_ALLOWED
+		var moonchartSound:Sound = flux.moonchart.FluxMoonchart.inst(song); // Flux Engine: audio de charts de osu!mania, StepMania, Codename...
+		if(moonchartSound != null) return moonchartSound;
+		#end
 		return returnSound('${formatToSongPath(song)}/Inst', 'songs', modsAllowed);
+	}
 
 	inline static public function voices(song:String, postfix:String = null, ?modsAllowed:Bool = true):Sound
 	{
+		#if MOONCHART_ALLOWED
+		var moonchartSound:Sound = flux.moonchart.FluxMoonchart.voices(song, postfix); // Flux Engine: voces de charts de Codename
+		if(moonchartSound != null) return moonchartSound;
+		#end
 		var songKey:String = '${formatToSongPath(song)}/Voices';
 		if(postfix != null) songKey += '-' + postfix;
 		//trace('songKey test: $songKey');
