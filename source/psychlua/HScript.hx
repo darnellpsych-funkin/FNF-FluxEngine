@@ -160,6 +160,9 @@ class HScript extends Iris
 		set('FlxColor', CustomFlxColor);
 		set('Countdown', backend.BaseStage.Countdown);
 		set('PlayState', PlayState);
+		#if MODCHARTS_ALLOWED
+		set('startModchart', flux.modchart.FluxModchart.start); // Flux Engine: el modchart.Manager de la canción (FunkinModchart)
+		#end
 		set('Paths', Paths);
 		set('Conductor', Conductor);
 		set('ClientPrefs', ClientPrefs);

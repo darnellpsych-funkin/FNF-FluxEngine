@@ -1,6 +1,6 @@
 # Flux Engine
 
-Fork de **Psych Engine 1.0.4** con más lenguajes de scripting y compatibilidad con mods de **V-Slice**.
+Fork de **Psych Engine 1.0.4** con más lenguajes de scripting, compatibilidad con mods de **V-Slice**, **modcharts** (FunkinModchart) y charts de **osu!mania, StepMania, Quaver y Codename** (Moonchart).
 
 ## Scripting de Flux Engine
 
@@ -199,6 +199,66 @@ Límites por ahora:
 
 Necesita RuleScript (`RULESCRIPT_ALLOWED`). Para desactivar los módulos, comenta `FLUX_VSLICE_SCRIPTS` en `Project.xml`.
 
+## Modcharts (FunkinModchart)
+
+Flux trae [FunkinModchart 1.2.5](https://github.com/TheoDevelops/FunkinModchart) (de TheoDevelops, licencia Apache 2.0, incluido en `source/flux/vendor/funkinmodchart`): efectos como los de NotITG en las flechas (`drunk`, `tipsy`, `reverse`, `rotate`, `beat`, `bounce`, `stealth`...), que cambian en el beat que quieras y con eases.
+
+Usa el modchart en `onCreatePost` (o en `onCountdownStarted` si la canción empieza con un diálogo), porque necesita que las flechas ya existan. Ejemplo: [`docs/flux-examples/modchart.lua`](docs/flux-examples/modchart.lua).
+
+| Función de Lua | Qué hace |
+|---|---|
+| `startModchart()` | Crea el modchart de la canción (las otras funciones también lo crean solas) |
+| `addModifier(nombre, ?campo)` | Agrega un modificador: `'drunk'`, `'tipsy'`, `'reverse'`, `'transform'`... |
+| `setPercent(nombre, valor, ?jugador, ?campo)` | Cambia el valor ahora (1 = 100%) |
+| `getPercent(nombre, ?jugador, ?campo)` | Devuelve el valor |
+| `setModifier(nombre, beat, valor, ?jugador, ?campo)` | Cambia el valor en ese beat |
+| `easeModifier(nombre, beat, duración, valor, ?ease, ?jugador, ?campo)` | Lo lleva a ese valor con un ease (`'linear'`, `'quadOut'`, `'sineInOut'`...); la duración es en beats |
+| `addEaseModifier(nombre, beat, duración, valor, ?ease, ?jugador, ?campo)` | Igual, pero suma al valor que tenga |
+| `setAddModifier(nombre, beat, valor, ?jugador, ?campo)` | Suma al valor en ese beat |
+| `modchartCallback(beat, 'función', ?campo)` | Llama una función de tu script en ese beat (recibe el beat) |
+| `modchartRepeater(beat, duración, 'función', ?campo)` | Llama esa función en cada frame durante la duración |
+| `aliasModifier(nombre, otroNombre, ?campo)` | Le pone otro nombre a un valor |
+| `addPlayfield()` | Agrega otro grupo de flechas (devuelve su número). Los modificadores agregados antes no pasan al nuevo |
+| `setModchartConfig(opción, valor)` | Cambia una opción de `modchart.Config` (por ejemplo `'RENDER_ARROW_PATHS'`) |
+
+`jugador`: `0` es el oponente, `1` el jugador y `-1` (o nada) los dos. `campo`: el grupo de flechas, `-1` (o nada) es todos.
+
+En los otros lenguajes (`.hx`, `.hxs`, `.ss`, `.rhx`, `.nx`...), `startModchart()` devuelve el `Manager` de FunkinModchart para usarlo directo, como en su [documentación](source/flux/vendor/funkinmodchart/DOC.md):
+
+```haxe
+function onCreatePost() {
+	var modchart = startModchart();
+	modchart.addModifier('drunk');
+	modchart.ease('drunk', 8, 4, 1, FlxEase.quadOut); // beat 8, dura 4 beats, llega a 100%
+}
+```
+
+Las opciones de `modchart.Config` (en los `.hxs` también como `ModchartConfig`) son globales: si cambias una, vuelve a ponerla como estaba en `onDestroy`. Para desactivar los modcharts, comenta `MODCHARTS_ALLOWED` en `Project.xml`.
+
+## Charts de otros juegos (Moonchart)
+
+Con [Moonchart 0.5.1](https://github.com/MaybeMaru/moonchart) (de MaybeMaru, licencia MIT, incluido en `source/flux/vendor/moonchart`), Flux juega charts de otros juegos sin convertirlos antes. Si una canción no tiene chart de Psych (ni de V-Slice), Flux busca en `data/<canción>/` y en `songs/<canción>/`:
+
+| Formato | Archivos | Dificultades |
+|---|---|---|
+| osu!mania | `.osu` (solo de 4 teclas) | Una por archivo: la `Version` del `.osu` |
+| Quaver | `.qua` (solo de 4 teclas) | Una por archivo: el `DifficultyName` |
+| StepMania | `.sm` y `.ssc` (solo los charts `dance-single`) | Las del archivo: Beginner, Easy, Medium (o Normal), Hard, Challenge (o Expert) |
+| Codename Engine | `charts/<dificultad>.json` y `meta.json` | Los nombres de los archivos de `charts/` |
+
+Cómo agregar una canción:
+
+1. Copia los archivos del chart a `mods/<tu mod>/data/<canción>/`. Para Codename, copia la carpeta de la canción completa a `mods/<tu mod>/songs/<canción>/`.
+2. Agrega la canción a una semana (`weeks/*.json`) con esas dificultades en `"difficulties"`, por ejemplo `"Easy, Hard, Insane"`. Si el chart trae una sola dificultad, sirve para todas. Si falta una, Freeplay muestra cuáles trae el chart.
+3. Audio: Flux usa el que pide el chart (`AudioFilename` de osu!, `AudioFile` de Quaver, `#MUSIC` de StepMania) o `Inst.ogg`. **En PC no se pueden reproducir MP3**: conviértelo a OGG con el mismo nombre (`audio.mp3` → `audio.ogg`). En Codename se usan `song/Inst.ogg` y `song/Voices.ogg`.
+
+- En osu!mania, Quaver y StepMania todas las notas son del jugador (esos juegos no tienen oponente). En Codename, las notas de cada personaje van a su lado y la cámara sigue los eventos `Camera Movement`.
+- Las minas de StepMania y las `Hurt Note` son notas de daño. Los otros tipos de nota de Codename pasan con su nombre: para que hagan algo, crea en `custom_notetypes/` un script con ese nombre.
+- Para tenerlo como chart de Psych, abre la canción en el editor de charts (tecla 7) y guarda con Ctrl+S: se guarda al lado del original (`<canción>-<dificultad>.json`). Si estaba en `data/<canción>/`, la próxima vez Flux carga ese.
+- Flux arregla dos cosas de Moonchart 0.5.1: el `AudioLeadIn` de osu! (adelantaba las notas) y los `.ssc` con varias dificultades (salían todas iguales).
+
+Para desactivarlo, comenta `MOONCHART_ALLOWED` en `Project.xml`.
+
 ## Compilar
 
 En Windows:
@@ -208,11 +268,15 @@ En Windows:
 
 Si aparece "Could not load lime.ndll" o "Library lime is not installed", falta el paso 1: se estaban usando las librerías de otro engine (por ejemplo el Lime de Git de V-Slice, que no trae `lime.ndll`). Si compilas a mano en tu carpeta de librerías de siempre, usa `haxelib set hscript 2.6.0` (RuleScript 0.2.0 no compila con hscript 2.7 o más nuevo).
 
+Si aparece `Could not find haxelib "hxcpp-debug-server"`, abriste el script de debug (`build_x64-debug.bat` o `test_x64-debug.bat`) y falta esa librería: abre otra vez `setup\windows.bat` (ahora la instala), o escribe `cmd` en la barra de direcciones de la carpeta de Flux y ejecuta `haxelib install hxcpp-debug-server`. Para jugar normal alcanza con `build_x64.bat`.
+
+Las librerías quedan en la carpeta `.haxelib` dentro de Flux. Si bajas una versión nueva, copia esa carpeta a la carpeta nueva para no instalar todo otra vez.
+
 Luau se compila junto con el juego desde `source/flux/vendor/luau` (necesita C++17; en Windows sirve el Visual Studio que instala `setup/windows-msvc.bat`). La máquina virtual de SScript también se compila con el juego (`source/flux/vendor/sscript/ssvm`, C++11). Por eso la primera compilación tarda un poco más.
 
 Ejemplos: [`docs/flux-examples/`](docs/flux-examples). Para desactivar un lenguaje, comenta `NXSCRIPT_ALLOWED`, `RULESCRIPT_ALLOWED`, `HSCRIPT_PLUS_ALLOWED`, `HSCRIPT_IMPROVED_ALLOWED`, `LUAU_ALLOWED` o `SSCRIPT_ALLOWED` en `Project.xml`. Para desactivar los `.luag`, comenta `LUA_GLOBAL_ALLOWED`.
 
-Código: `source/flux/scripting/` (lenguajes y funciones de Lua), `source/flux/vslice/` (mods de V-Slice) y `source/flux/vslice/modules/` (módulos `.hxc`).
+Código: `source/flux/scripting/` (lenguajes y funciones de Lua), `source/flux/vslice/` (mods de V-Slice), `source/flux/vslice/modules/` (módulos `.hxc`), `source/flux/modchart/` (modcharts) y `source/flux/moonchart/` (charts de otros juegos).
 
 ---
 

@@ -114,6 +114,12 @@ class FluxHxsPreset
 
 	public static function apply(script:FluxScript):Void
 	{
+		#if MODCHARTS_ALLOWED
+		// ---------- Modcharts (FunkinModchart) ----------
+		script.set('startModchart', flux.modchart.FluxModchart.start); // devuelve el modchart.Manager de la canción
+		script.set('ModchartConfig', modchart.Config);
+		#end
+
 		// ---------- Haxe ----------
 		script.set('Reflect', Reflect);
 		script.set('Lambda', Lambda);
