@@ -10,6 +10,7 @@ import flixel.FlxState;
 import flixel.FlxSubState;
 import flixel.util.FlxColor;
 import flux.vslice.api.Module;
+import flux.vslice.api.NoteKind;
 import flux.vslice.api.ScriptEvent;
 import flux.vslice.api.VSliceApi.VSScoring;
 import flux.vslice.modules.HxcLoader;
@@ -46,13 +47,18 @@ typedef VSliceClassInfo =
  *     onSongEvent, onBeatHit, onStepHit, onPause, onResume, onGameOver.
  *     Los que se pueden cancelar (event.cancel()) frenan lo que haría Psych.
  *
- * Por ahora solo se usan las clases que extienden Module; las de canciones,
- * escenarios y personajes (Song, Stage, Character...) se ignoran con un aviso.
+ * También los tipos de nota (`extends NoteKind` / `ScriptedNoteKind`): reciben
+ * los eventos de las notas de su tipo y los demás eventos de la canción.
+ * Las clases de canciones, escenarios y personajes (Song, Stage, Character...)
+ * todavía se ignoran con un aviso.
  */
 class FluxVSliceModules
 {
 	/** Módulos activos ordenados por prioridad. */
 	public static var modules(default, null):Array<Module> = [];
+
+	/** Tipos de nota de los .hxc (tipo de nota del chart -> script). */
+	public static var noteKinds(default, null):Map<String, NoteKind> = new Map<String, NoteKind>();
 
 	/** Clases encontradas en los .hxc (nombre -> datos). */
 	public static var classes(default, null):Map<String, VSliceClassInfo> = new Map<String, VSliceClassInfo>();
@@ -65,6 +71,7 @@ class FluxVSliceModules
 
 	static var classOrder:Array<String> = [];
 	static var moduleInfo:ObjectMap<Module, VSliceClassInfo> = new ObjectMap<Module, VSliceClassInfo>();
+	static var kindInfo:ObjectMap<NoteKind, VSliceClassInfo> = new ObjectMap<NoteKind, VSliceClassInfo>();
 	static var initialized:Bool = false;
 	static var loadedSignature:String = null;
 	static var hookedState:FlxState = null;
@@ -93,8 +100,11 @@ class FluxVSliceModules
 		FlxG.signals.focusGained.add(function() if (hasModules()) callEvent(new FocusScriptEvent(ScriptEventType.FOCUS_GAINED)));
 	}
 
+	/** Si hay algo a quien mandarle eventos (módulos o tipos de nota). */
 	public static inline function hasModules():Bool
-		return modules.length > 0;
+		return modules.length > 0 || noteKindCount > 0;
+
+	static var noteKindCount:Int = 0;
 
 	// ----- Carga -----
 
@@ -119,10 +129,30 @@ class FluxVSliceModules
 		}
 
 		var loaded:Array<String> = [];
+		var loadedKinds:Array<String> = [];
 		var ignored:Array<String> = [];
 		for (name in classOrder)
 		{
 			var info:VSliceClassInfo = classes.get(name);
+			if (info.superName == 'NoteKind' || info.superName == 'ScriptedNoteKind')
+			{
+				var kind:NoteKind = null;
+				try
+				{
+					kind = new FluxScriptedNoteKind(info.name, [info.name]);
+				}
+				catch (e:Dynamic)
+				{
+					reportError('${info.name} (${info.file})', 'no se pudo crear: ' + errorText(e));
+					continue;
+				}
+				if (kind.noteKind == null || kind.noteKind.length == 0)
+					kind.noteKind = info.name;
+				kindInfo.set(kind, info);
+				noteKinds.set(kind.noteKind, kind);
+				loadedKinds.push('${kind.noteKind} (${info.name}) [${info.mod}]');
+				continue;
+			}
 			if (info.superName != 'Module' && info.superName != 'ScriptedModule')
 			{
 				ignored.push('${info.name} (extends ${info.superName})');
@@ -145,10 +175,13 @@ class FluxVSliceModules
 		}
 		reorder();
 
+		noteKindCount = Lambda.count(noteKinds);
 		if (loaded.length > 0)
 			log('Módulos de V-Slice cargados: ' + loaded.join(', '));
+		if (loadedKinds.length > 0)
+			log('Tipos de nota de V-Slice cargados: ' + loadedKinds.join(', '));
 		if (ignored.length > 0)
-			log('Clases de V-Slice que Flux todavía no usa (por ahora solo módulos): ' + ignored.join(', '));
+			log('Clases de V-Slice que Flux todavía no usa (por ahora módulos y tipos de nota): ' + ignored.join(', '));
 
 		callEvent(new ScriptEvent(ScriptEventType.CREATE));
 	}
@@ -161,6 +194,9 @@ class FluxVSliceModules
 			RuleScriptedClassUtil.types.remove(name);
 		modules = [];
 		moduleInfo = new ObjectMap<Module, VSliceClassInfo>();
+		noteKinds = new Map<String, NoteKind>();
+		kindInfo = new ObjectMap<NoteKind, VSliceClassInfo>();
+		noteKindCount = 0;
 		classes = new Map<String, VSliceClassInfo>();
 		classOrder = [];
 		errorCounts = new Map<String, Int>();
@@ -268,10 +304,13 @@ class FluxVSliceModules
 
 	// ----- Eventos -----
 
-	/** Manda el evento a todos los módulos activos (por prioridad). */
+	/**
+	 * Manda el evento a todos los módulos activos (por prioridad) y, en una
+	 * canción, a los tipos de nota (como el PlayState de V-Slice: módulos primero).
+	 */
 	public static function callEvent(event:ScriptEvent):Void
 	{
-		if (event == null || modules.length == 0)
+		if (event == null)
 			return;
 		for (module in modules.copy())
 		{
@@ -279,8 +318,50 @@ class FluxVSliceModules
 				continue;
 			dispatchTo(module, event);
 			if (!event.shouldPropagate)
+				return;
+		}
+		if (noteKindCount > 0 && PlayState.instance != null && FlxG.state == PlayState.instance)
+			callNoteKinds(event);
+	}
+
+	/**
+	 * NoteKindManager.callEvent de V-Slice: un evento de una nota va solo al tipo
+	 * de esa nota; los demás eventos van a todos los tipos de nota.
+	 */
+	public static function callNoteKinds(event:ScriptEvent):Void
+	{
+		if (event == null || noteKindCount == 0)
+			return;
+		if (Std.isOfType(event, NoteScriptEvent))
+		{
+			var note:Dynamic = (cast event : NoteScriptEvent).note;
+			var kind:NoteKind = (note != null && Std.isOfType(note, Note)) ? noteKinds.get((cast note : Note).noteType) : null;
+			if (kind != null)
+				dispatchTo(kind, event);
+			return;
+		}
+		for (kind in noteKinds)
+		{
+			dispatchTo(kind, event);
+			if (!event.shouldPropagate)
 				break;
 		}
+	}
+
+	/** Lo que el tipo de nota de V-Slice cambia en la nota de Psych (noanim, sufijo, scoreable). */
+	public static function applyNoteKind(note:Note):Void
+	{
+		if (note == null || noteKindCount == 0)
+			return;
+		var kind:NoteKind = noteKinds.get(note.noteType);
+		if (kind == null)
+			return;
+		if (kind.noanim)
+			note.noAnimation = true;
+		if (kind.suffix != null && kind.suffix.length > 0)
+			note.animSuffix = kind.suffix;
+		if (!kind.scoreable)
+			note.ratingDisabled = true;
 	}
 
 	/** Llama a onScriptEvent y a la función del evento (onUpdate, onNoteHit...) del objeto. */
@@ -289,7 +370,7 @@ class FluxVSliceModules
 		if (target == null || event == null)
 			return;
 
-		var info:VSliceClassInfo = Std.isOfType(target, Module) ? moduleInfo.get(cast target) : null;
+		var info:VSliceClassInfo = Std.isOfType(target, Module) ? moduleInfo.get(cast target) : (Std.isOfType(target, NoteKind) ? kindInfo.get(cast target) : null);
 		var previousMod:String = currentMod;
 		if (info != null)
 			currentMod = info.mod;
@@ -455,6 +536,7 @@ class FluxVSliceModules
 
 	public static function onNoteIncoming(game:PlayState, note:Note):Void
 	{
+		applyNoteKind(note);
 		if (hasModules() && note != null)
 			callEvent(new NoteScriptEvent(ScriptEventType.NOTE_INCOMING, note, 0, game.combo, false));
 	}

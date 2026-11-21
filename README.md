@@ -165,7 +165,7 @@ Pon la carpeta del mod de V-Slice dentro de `mods/` (la que tiene `_polymod_meta
 - **Canciones** (`data/songs/<canción>/<canción>-metadata.json` y `-chart.json`): todas las dificultades, cambios de BPM, cámara (`FocusCamera`) y tipos de nota comunes.
 - **Variaciones**: Erect y Nightmare se suman como dificultades de la canción normal; los mixes que repiten dificultades (Pico Mix, BF Mix...) salen aparte en Freeplay con su nombre.
 - **Audio** con los nombres de V-Slice: `Inst.ogg`, `Inst-erect.ogg`, `Voices-bf.ogg`, `Voices-dad-erect.ogg`, `Voices-pico-pico.ogg`...
-- **Eventos**: `PlayAnimation`, `ScrollSpeed`, `ZoomCamera`, `SetCameraBop`, `SetHealthIcon` y `SetTargetBopSpeed`. Los demás llegan a `onEvent` de los scripts con el valor en JSON.
+- **Eventos**: `PlayAnimation`, `ScrollSpeed`, `ZoomCamera` (también con `easeDir`), `SetCameraBop`, `SetHealthIcon`, `SetTargetBopSpeed` y `Subtitles` (la letra abajo de la pantalla). Los demás llegan a `onEvent` de los scripts con el valor en JSON.
 - **Cambios de personaje**: V-Slice no trae un evento para eso y cada mod usa el suyo, casi siempre el `ChangeCharacter` de NebulaStellaNova (`{"character": "dad", "newchar": "finn-sword"}`). Flux lo convierte al "Change Character" de Psych: los personajes se cargan al empezar y cambian en su lugar del escenario, con su ícono. También entiende nombres parecidos (`SetCharacter`, `SwitchCharacter`, `Change Character`...) con `character`/`char`/`target` y `newchar`/`id`/`to`.
 
 ### Personajes y escenarios de V-Slice (fase 2)
@@ -182,10 +182,12 @@ Todavía no (próximas fases): los scripts de canción, escenario, personajes, e
 
 ## Módulos de V-Slice (`.hxc`, fase 5)
 
-Flux carga las clases de los `.hxc` que hacen `extends Module`, igual que el `ModuleHandler` de V-Slice. Busca en todos los mods activos al abrir el juego, y otra vez si cambias los mods activos. Esas clases funcionan en cualquier menú y en las canciones, y reciben los mismos eventos que en V-Slice:
+Flux carga las clases de los `.hxc` que hacen `extends Module`, igual que el `ModuleHandler` de V-Slice, y los tipos de nota (`extends NoteKind` o `ScriptedNoteKind`). Busca en todos los mods activos al abrir el juego, y otra vez si cambias los mods activos. Esas clases funcionan en cualquier menú y en las canciones, y reciben los mismos eventos que en V-Slice:
 
 - En todo el juego: `onCreate`, `onDestroy`, `onUpdate`, `onStateChangeBegin`/`End`, `onSubStateOpenEnd`/`CloseEnd` y `onFocusLost`/`Gained`.
 - En las canciones: `onSongLoaded`, `onCountdownStart`/`Step`/`End`, `onSongStart`, `onSongEnd`, `onNoteIncoming`, `onNoteHit`, `onNoteMiss`, `onNoteGhostMiss`, `onSongEvent`, `onBeatHit`, `onStepHit`, `onPause`, `onResume` y `onGameOver`.
+
+Un tipo de nota recibe los eventos de las notas de su tipo (`onNoteHit`, `onNoteMiss`, `onNoteIncoming`...) y los demás de la canción. Lo que pone en `super(...)` también funciona: con `noanim` el personaje no canta esas notas (por ejemplo, para que las cante otro desde el script), el sufijo va a la animación y `scoreable = false` hace que no den puntaje. Así funcionan las notas de Morty de Schwifty (Rick and Morty).
 
 Con `event.cancel()` se frena lo que haría Psych: un golpe o un fallo no cuentan, una pausa o una muerte no pasan, y un evento no se ejecuta. Eso último solo vale para el efecto del evento: los demás scripts igual lo reciben.
 
@@ -194,7 +196,7 @@ Los nombres de V-Slice se traducen a Psych. Por ejemplo, `PlayState.instance` es
 Probado con el botplay de snezhok174 y Kai0903: la opción "Enable Botplay" aparece en la pausa, el bot pega todas las notas (también los sustains), no pega las notas de daño y, como en V-Slice, la puntuación no se guarda si usaste el bot. Su esquive automático para los mods de QT se probó con un módulo de prueba.
 
 Límites por ahora:
-- Solo se usan los módulos. Las clases de canciones, escenarios y personajes (`extends Song`, `Stage`, `BaseCharacter`...) se ignoran con un aviso en la consola.
+- Solo se usan los módulos y los tipos de nota. Las clases de canciones, escenarios, personajes y eventos (`extends Song`, `Stage`, `BaseCharacter`, `SongEvent`...) se ignoran con un aviso en la consola.
 - Lo que Flux todavía no tiene (por ejemplo el menú de opciones de V-Slice, `OptionsState`/`PreferencesMenu`) no rompe el módulo: el `.hxc` carga igual, la consola dice qué falta y esas partes no hacen nada. Por eso la página de opciones del botplay no aparece.
 - Los errores de un módulo salen en la consola y, si estás jugando, en pantalla, con el archivo y la línea. El mismo error se muestra 3 veces como máximo.
 
