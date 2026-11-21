@@ -1,0 +1,21 @@
+// contador.hxsg: HScript global (un .hxs con una "g"). Va en mods/TuMod/scripts/.
+// Corre en todos los menús y canciones sin reiniciarse, así que las variables se mantienen.
+
+var notasTotales = 0;
+var canciones = 0;
+
+function onStateCreatePost(estado) {
+	if (Std.isOfType(estado, PlayState)) {
+		canciones++;
+		return;
+	}
+	var texto = makeText(10, FlxG.height - 30, 0, 'Notas: ' + notasTotales + ' en ' + canciones + ' canciones', 16);
+	texto.scrollFactor.set();
+	estado.add(texto);
+}
+
+// en las canciones llegan los mismos callbacks que a un .hxs normal
+function goodNoteHit(note) {
+	if (!note.isSustainNote)
+		notasTotales++;
+}

@@ -3492,7 +3492,7 @@ class PlayState extends MusicBeatState
 
 	public function callOnFluxScripts(funcToCall:String, args:Array<Dynamic> = null, ?ignoreStops:Bool = false, exclusions:Array<String> = null, excludeValues:Array<Dynamic> = null):Dynamic {
 		var returnVal:Dynamic = LuaUtils.Function_Continue;
-		if(fluxScriptArray == null || fluxScriptArray.length < 1) return returnVal;
+		if(fluxScriptArray == null) fluxScriptArray = [];
 		if(args == null) args = [];
 		if(exclusions == null) exclusions = [];
 		if(excludeValues == null) excludeValues = [];
@@ -3523,18 +3523,50 @@ class PlayState extends MusicBeatState
 		for (script in closed)
 			fluxScriptArray.remove(script);
 
+		// los scripts globales (.hxsg, .luaug, .ssg...) también reciben los callbacks de la canción
+		if(flux.scripting.FluxStateScripts.forwardsToGlobals(funcToCall) && (ignoreStops || (returnVal != LuaUtils.Function_StopHScript && returnVal != LuaUtils.Function_StopAll)))
+		{
+			for (script in flux.scripting.FluxStateScripts.globalScripts.copy())
+			{
+				if(script == null || !script.active || isLuaGlobal(script) || exclusions.contains(script.origin) || !script.exists(funcToCall))
+					continue;
+
+				var myValue:Dynamic = script.call(funcToCall, args);
+				if((myValue == LuaUtils.Function_StopHScript || myValue == LuaUtils.Function_StopAll) && !excludeValues.contains(myValue) && !ignoreStops)
+				{
+					returnVal = myValue;
+					break;
+				}
+				if(myValue != null && !excludeValues.contains(myValue))
+					returnVal = myValue;
+			}
+		}
+
 		return returnVal;
 	}
 
+	static inline function isLuaGlobal(script:FluxScript):Bool
+	{
+		#if LUA_GLOBAL_ALLOWED
+		return script is flux.scripting.FluxLuaGlobal;
+		#else
+		return false;
+		#end
+	}
+
 	public function setOnFluxScripts(variable:String, arg:Dynamic, exclusions:Array<String> = null) {
-		if(fluxScriptArray == null) return;
 		if(exclusions == null) exclusions = [];
-		for (script in fluxScriptArray)
-		{
-			if(script == null || exclusions.contains(script.origin))
-				continue;
-			script.set(variable, arg);
-		}
+		if(fluxScriptArray != null)
+			for (script in fluxScriptArray)
+			{
+				if(script == null || exclusions.contains(script.origin))
+					continue;
+				script.set(variable, arg);
+			}
+
+		for (script in flux.scripting.FluxStateScripts.globalScripts)
+			if(script != null && script.active && !isLuaGlobal(script) && !exclusions.contains(script.origin))
+				script.set(variable, arg);
 	}
 	#end
 
@@ -3584,6 +3616,27 @@ class PlayState extends MusicBeatState
 		if(arr.length > 0)
 			for (script in arr)
 				luaArray.remove(script);
+
+		// Flux Engine: los .luag (scripts globales de Lua) también reciben los callbacks de la canción
+		#if LUA_GLOBAL_ALLOWED
+		if(flux.scripting.FluxStateScripts.forwardsToGlobals(funcToCall) && (ignoreStops || (returnVal != LuaUtils.Function_StopLua && returnVal != LuaUtils.Function_StopAll)))
+		{
+			for (script in flux.scripting.FluxStateScripts.globalScripts.copy())
+			{
+				if(script == null || !script.active || !(script is flux.scripting.FluxLuaGlobal) || exclusions.contains(script.origin))
+					continue;
+
+				var myValue:Dynamic = script.call(funcToCall, args);
+				if((myValue == LuaUtils.Function_StopLua || myValue == LuaUtils.Function_StopAll) && !excludeValues.contains(myValue) && !ignoreStops)
+				{
+					returnVal = myValue;
+					break;
+				}
+				if(myValue != null && !excludeValues.contains(myValue))
+					returnVal = myValue;
+			}
+		}
+		#end
 		#end
 		return returnVal;
 	}
@@ -3647,6 +3700,12 @@ class PlayState extends MusicBeatState
 
 			script.set(variable, arg);
 		}
+
+		#if LUA_GLOBAL_ALLOWED
+		for (script in flux.scripting.FluxStateScripts.globalScripts)
+			if(script != null && script.active && (script is flux.scripting.FluxLuaGlobal) && !exclusions.contains(script.origin))
+				script.set(variable, arg);
+		#end
 		#end
 	}
 

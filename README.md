@@ -13,6 +13,8 @@ Fork de **Psych Engine 1.0.4** con más lenguajes de scripting y compatibilidad 
 | hscript-plus | `.hsp` | [hscript-plus](https://github.com/DleanJeans/hscript-plus) (incluido en `source/flux/vendor/hsplus`) |
 | HScript expandido | `.hxs` | [hscript-improved](https://github.com/CodenameCrew/hscript-improved) de Codename Engine (incluido en `source/flux/vendor/hsimproved`) |
 | Luau | `.luau` | [Luau](https://github.com/luau-lang/luau), el Lua de Roblox (incluido en `source/flux/vendor/luau`, se compila con el juego) |
+| SScript | `.ss` | [SScript 24.0.0](https://github.com/ThomasDarkson/SScript) (incluido en `source/flux/vendor/sscript`, se compila con el juego) |
+| Globales | `.hxsg`, `.luaug`, `.ssg`... y `.luag` | Los mismos lenguajes, pero corren en todo el juego (ver abajo) |
 
 Los scripts nuevos se cargan en los mismos lugares que los `.hx`: `scripts/`, `data/<canción>/`, `stages/`, `characters/`, `custom_notetypes/` y `custom_events/`. Reciben los mismos callbacks (`onCreate`, `onCreatePost`, `onUpdate`, `onBeatHit`, `goodNoteHit`, ...) y las mismas variables (`game`, `FlxG`, `FlxSprite`, `FlxTween`, `PlayState`, `setVar`, `debugPrint`, `Function_Stop`, ...). Corren después de HScript y respetan `Function_StopHScript` / `Function_StopAll`. Para cambiar valores del juego usa `game.` (`game.health`, `game.combo`...).
 
@@ -21,6 +23,7 @@ Los scripts nuevos se cargan en los mismos lugares que los `.hx`: `scripts/`, `d
 - **hscript-plus**: agrega clases con herencia (`class Jefe extends Enemigo`). Es una versión vieja de hscript (2017): no tiene `() -> {}`, `?.` ni `??`. Dentro de una clase usa `campo = campo + 1` en vez de `+=`. Flux corrige un bug del original que evaluaba dos veces el lado derecho de `a = b`.
 - **HScript expandido (`.hxs`)**: el más completo, ver la sección de abajo.
 - **Luau (`.luau`)**: Lua con los objetos del juego directo (`game.boyfriend.alpha = 0.5`), ver la sección de abajo.
+- **SScript (`.ss`)**: HScript que corre en su propia máquina virtual de C++ (rápido), ver la sección de abajo.
 
 ### HScript expandido (`.hxs`)
 
@@ -79,17 +82,59 @@ Desde Lua: `runLuau(código, ?función, ?argumentos)` y `runFluxFunction('luau',
 
 Ejemplos: [`ejemplo.luau`](docs/flux-examples/ejemplo.luau) (usa [`utilidades.luau`](docs/flux-examples/utilidades.luau)) y [`states/MainMenuState.luau`](docs/flux-examples/states/MainMenuState.luau).
 
+### SScript (`.ss`)
+
+[SScript](https://github.com/ThomasDarkson/SScript) 24 es un fork de HScript. Corre los scripts en su propia máquina virtual de C++ (SSVM), así que es rápido. Se escribe como un `.hx` de Psych:
+
+- **Mismo preset que los `.hxs`**: `game`, `FlxG`, `Paths`, casi todo Flixel/OpenFL/Psych y las funciones (`makeText`, `tween`, `timer`, `playSound`, `getVar`/`setVar`, `debugPrint`, `switchState`...). Los campos del estado se usan directo (`boyfriend`, `camHUD`, `add(...)`).
+- **Lenguaje**: `import`, funciones con tipos (`function f(x:Int):Int`), `?.`, `??`, `'${interpolación}'`, `switch`, `try/catch`, mapas (`['a' => 1]`) y `for (k => v in mapa)`.
+- Si el script usa un nombre que todavía no existe cuando se carga (por ejemplo una variable que otro script pone después), SScript usa su intérprete en vez de la máquina virtual. Funciona igual, pero más lento.
+- Flux corrige tres fallas del SScript original:
+  - `null` y las variables que valen `null` daban error en el intérprete.
+  - Una función sin argumentos no servía de callback (`onComplete: function() ...`).
+  - Un error dentro de un tween o un timer cerraba el juego. Ahora sale como un error del script, y el juego sigue.
+- También sirve para menús (`states/<Menú>.ss`) y como script global (`.ssg`).
+
+Desde Lua: `runSScript(código, ?función, ?argumentos)` y `runFluxFunction('sscript', función, argumentos)`.
+
+Ejemplo: [`ejemplo.ss`](docs/flux-examples/ejemplo.ss).
+
 ### Scripts de menús y scripts globales
 
-Funcionan con todos los lenguajes de Flux, pero están pensados para `.hxs` y `.luau`:
+Funcionan con todos los lenguajes de Flux:
 
-- **Menús**: `mods/TuMod/states/<Menú>.hxs`, por ejemplo `states/MainMenuState.hxs`, `states/FreeplayState.hxs`, `states/TitleState.hxs` o `states/OptionsState.hxs`. Corre mientras ese menú está abierto, y `game` es el menú. Funciones: `onCreate`, `onCreatePost`, `onUpdate(elapsed)`, `onUpdatePost(elapsed)`, `onBeatHit(beat)`, `onStepHit(step)`, `onDestroy`, `onFocusLost` y `onFocus`.
+- **Menús**: `mods/TuMod/states/<Menú>.hxs` (o `.luau`, `.ss`...), por ejemplo `states/MainMenuState.hxs`, `states/FreeplayState.hxs`, `states/TitleState.hxs` o `states/OptionsState.hxs`. Corre mientras ese menú está abierto, y `game` es el menú. Funciones: `onCreate`, `onCreatePost`, `onUpdate(elapsed)`, `onUpdatePost(elapsed)`, `onBeatHit(beat)`, `onStepHit(step)`, `onDestroy`, `onFocusLost` y `onFocus`.
 - **Menús nuevos**: `switchState('MiMenu')` abre `states/MiMenu.hxs` como un menú propio, aunque no exista en el código del engine.
-- **Globales**: `mods/TuMod/scripts/global/*.hxs` corren siempre, en todos los menús y canciones. Funciones: `onCreate`, `onStateCreate(menú)`, `onStateCreatePost(menú)`, `onStateSwitch(menú)`, `onUpdate(elapsed)`, `onBeatHit`, `onStepHit`, `onFocusLost` y `onFocus`.
+- **Globales**: corren siempre, en todos los menús y canciones, y no se reinician al cambiar de menú (las variables se mantienen). Hay dos formas de hacerlos:
+  - Con la extensión del lenguaje más una `g`, en `mods/TuMod/scripts/`: `.hxsg`, `.luaug`, `.ssg`, `.rhxg`, `.nxg`, `.nxsg` y `.hspg`. Para Lua es `.luag` (ver abajo).
+  - Con cualquier script de Flux en `mods/TuMod/scripts/global/`.
 
-Se buscan en las mismas carpetas que usa Psych: el mod actual, los mods globales y `mods/`.
+  Funciones: `onCreate`, `onStateCreate(menú)`, `onStateCreatePost(menú)`, `onStateSwitch(menú)`, `onUpdate(elapsed)`, `onBeatHit`, `onStepHit`, `onFocusLost` y `onFocus`. En las canciones también reciben todos los callbacks de la canción (`goodNoteHit`, `noteMiss`, `onSongStart`, `onEvent`, `onPause`, `onUpdatePost`...), con los mismos argumentos que un script normal, y pueden devolver `Function_Stop`.
 
-Ejemplos: [`ejemplo.hxs`](docs/flux-examples/ejemplo.hxs), [`states/MainMenuState.hxs`](docs/flux-examples/states/MainMenuState.hxs), [`states/MiMenu.hxs`](docs/flux-examples/states/MiMenu.hxs) y [`scripts/global/reloj.hxs`](docs/flux-examples/scripts/global/reloj.hxs).
+Se buscan en las mismas carpetas que usa Psych: el mod actual, los mods globales y `mods/`. Los `.hxs`, `.lua`, `.luau`... sueltos en `scripts/` siguen siendo scripts de canción, como siempre.
+
+Ejemplos: [`ejemplo.hxs`](docs/flux-examples/ejemplo.hxs), [`states/MainMenuState.hxs`](docs/flux-examples/states/MainMenuState.hxs), [`states/MiMenu.hxs`](docs/flux-examples/states/MiMenu.hxs), [`scripts/global/reloj.hxs`](docs/flux-examples/scripts/global/reloj.hxs) y [`scripts/contador.hxsg`](docs/flux-examples/scripts/contador.hxsg).
+
+### Lua global (`.luag`)
+
+Es el mismo Lua de Psych, pero corre en todo el juego: en los menús y en las canciones, sin reiniciarse. Va en `mods/TuMod/scripts/`, por ejemplo `scripts/reloj.luag`.
+
+- **Funciones**: las de Psych que sirven en cualquier menú, con los mismos nombres y argumentos:
+  - `getProperty`/`setProperty` (también `FromClass` y `FromGroup`), `callMethod`, `callMethodFromClass`, `createInstance`, `addInstance`, `getObjectOrder`/`setObjectOrder`.
+  - Sprites: `makeLuaSprite`, `makeAnimatedLuaSprite`, `makeGraphic`, `loadGraphic`, `addAnimationByPrefix`/`addAnimation`/`addAnimationByIndices`, `playAnim`, `addLuaSprite`/`removeLuaSprite`, `scaleObject`, `screenCenter`, `setObjectCamera`, `setBlendMode`...
+  - Textos: `makeLuaText`, `addLuaText`, `removeLuaText`, `setTextString`, `setTextSize`, `setTextColor`, `setTextAlignment`, `getTextString`...
+  - Tweens y timers: `doTweenX`/`Y`/`Angle`/`Alpha`/`Zoom`/`Color`, `startTween`, `cancelTween`, `runTimer`, `cancelTimer`.
+  - Sonido y cámaras: `playMusic`, `playSound`, `stopSound`, `soundFadeIn`/`Out`, `cameraShake`/`Flash`/`Fade`, `precacheImage`/`Sound`/`Music`.
+  - Otras: teclado y mouse (`keyboardJustPressed`, `keyJustPressed`, `mouseClicked`, `getMouseX`...), `setVar`/`getVar`, `debugPrint`, `getRandomInt`, `initSaveData`/`getDataFromSave`/`setDataFromSave`, `getModSetting`, `getTextFromFile`, `runHaxeCode` y `close`.
+  - Nuevas: `switchState('FreeplayState')` (también menús hechos con script) y `resetState()`.
+- **Variables**: `curState` (el menú actual, por ejemplo `'MainMenuState'`), `inSong` e `isGlobalScript`. En las canciones también `songName`, `curBeat`, `score`, `misses`... como en un `.lua` normal.
+- **Callbacks**: los de los globales de arriba, más `onTweenCompleted`, `onTimerCompleted` y `onSoundFinished`.
+- `game` es el menú actual, o la canción si estás jugando. En una canción, lo propio de la canción se hace con `getProperty`/`setProperty`/`callMethod`, por ejemplo `setProperty('health', 2)` o `callMethod('boyfriend.playAnim', {'hey', true})`.
+- Los timers siguen andando al cambiar de menú, y también en la pausa. Los tweens, sonidos, sprites y textos son del menú: Flixel los borra al cambiar. Los saves de `initSaveData` se mantienen.
+- Para los callbacks de `startTween` se usa el nombre de la función como texto, como en Psych (`onComplete = 'miFuncion'`). Una función de Lua ahí llega como `nil`.
+- `close()` lo apaga hasta que reinicies el juego.
+
+Ejemplo: [`scripts/reloj.luag`](docs/flux-examples/scripts/reloj.luag).
 
 Experimental: para que las clases de un `.hxs` puedan heredar de clases de Flixel (`class MiSprite extends FlxSprite`), quita el comentario de `HXS_FLIXEL_CLASSES` en `Project.xml`. La compilación tarda más.
 
@@ -102,8 +147,9 @@ Experimental: para que las clases de un `.hxs` puedan heredar de clases de Flixe
 | `runHScriptPlus(código, ?función, ?argumentos)` | Igual, con hscript-plus |
 | `runHScriptImproved(código, ?función, ?argumentos)` | Igual, con el HScript expandido (`.hxs`) |
 | `runLuau(código, ?función, ?argumentos)` | Igual, con Luau (`.luau`) |
-| `runFluxFunction(lenguaje, función, ?argumentos)` | Llama una función creada antes con `run...` (`"rulescript"`, `"nxscript"`, `"hscriptplus"`, `"hxs"` o `"luau"`) |
-| `addFluxScript(archivo)` / `removeFluxScript(archivo)` | Carga o quita un script `.rhx`, `.nx`, `.nxs`, `.hsp`, `.hxs` o `.luau` (la extensión es opcional) |
+| `runSScript(código, ?función, ?argumentos)` | Igual, con SScript (`.ss`) |
+| `runFluxFunction(lenguaje, función, ?argumentos)` | Llama una función creada antes con `run...` (`"rulescript"`, `"nxscript"`, `"hscriptplus"`, `"hxs"`, `"luau"` o `"sscript"`) |
+| `addFluxScript(archivo)` / `removeFluxScript(archivo)` | Carga o quita un script `.rhx`, `.nx`, `.nxs`, `.hsp`, `.hxs`, `.luau` o `.ss` (la extensión es opcional) |
 | `isFluxScriptRunning(archivo)` / `getRunningFluxScripts()` | Saber qué scripts están corriendo |
 | `callFluxScript(archivo, función, ?argumentos)` | Llama una función de un script de archivo |
 | `getFluxScriptVar(archivo, variable)` / `setFluxScriptVar(archivo, variable, valor)` | Lee o cambia una variable de un script |
@@ -147,9 +193,9 @@ Necesita RuleScript (`RULESCRIPT_ALLOWED`). Para desactivar los módulos, coment
 
 Los scripts de `setup/` instalan todo, incluidos `nxscript`, `rulescript` y `hscript 2.6.0`. Si compilas a mano y ya tenías otra versión de hscript, ejecuta `haxelib set hscript 2.6.0` (RuleScript 0.2.0 no compila con hscript 2.7 o más nuevo). Si tienes librerías de Git de otros engines (por ejemplo el Lime de V-Slice), usa una carpeta de librerías propia para Flux: en la carpeta del proyecto ejecuta `haxelib newrepo` y `haxelib install hxcpp 4.3.2`, y después abre `setup/windows.bat` con doble clic.
 
-Luau se compila junto con el juego desde `source/flux/vendor/luau` (necesita C++17; en Windows sirve el Visual Studio que instala `setup/windows-msvc.bat`). Por eso la primera compilación tarda un poco más.
+Luau se compila junto con el juego desde `source/flux/vendor/luau` (necesita C++17; en Windows sirve el Visual Studio que instala `setup/windows-msvc.bat`). La máquina virtual de SScript también se compila con el juego (`source/flux/vendor/sscript/ssvm`, C++11). Por eso la primera compilación tarda un poco más.
 
-Ejemplos: [`docs/flux-examples/`](docs/flux-examples). Para desactivar un lenguaje, comenta `NXSCRIPT_ALLOWED`, `RULESCRIPT_ALLOWED`, `HSCRIPT_PLUS_ALLOWED`, `HSCRIPT_IMPROVED_ALLOWED` o `LUAU_ALLOWED` en `Project.xml`.
+Ejemplos: [`docs/flux-examples/`](docs/flux-examples). Para desactivar un lenguaje, comenta `NXSCRIPT_ALLOWED`, `RULESCRIPT_ALLOWED`, `HSCRIPT_PLUS_ALLOWED`, `HSCRIPT_IMPROVED_ALLOWED`, `LUAU_ALLOWED` o `SSCRIPT_ALLOWED` en `Project.xml`. Para desactivar los `.luag`, comenta `LUA_GLOBAL_ALLOWED`.
 
 Código: `source/flux/scripting/` (lenguajes y funciones de Lua), `source/flux/vslice/` (mods de V-Slice) y `source/flux/vslice/modules/` (módulos `.hxc`).
 
