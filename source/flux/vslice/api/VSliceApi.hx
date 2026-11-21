@@ -13,6 +13,11 @@ import flixel.util.FlxSave;
 import flux.vslice.api.ScriptEvent;
 import flux.vslice.modules.FluxVSliceModules;
 import states.PlayState;
+import backend.Mods;
+import sys.FileSystem;
+import sys.io.File;
+
+using StringTools;
 
 /**
  * Versiones "de mentira" de clases de V-Slice para que los módulos .hxc
@@ -563,22 +568,29 @@ class VSPaths
 		return FluxVSliceModules.withModFallback(() -> Paths.getPackerAtlas(key));
 
 	public static function json(key:String, ?library:String):String
-		return Paths.json(key);
+		return findPath('data/$key.json');
 
 	public static function txt(key:String, ?library:String):String
-		return Paths.txt(key);
+		return findPath('data/$key.txt');
 
 	public static function xml(key:String, ?library:String):String
-		return Paths.xml(key);
+		return findPath('data/$key.xml');
 
 	public static function file(file:String, ?library:String):String
-		return Paths.getPath(file);
+		return findPath(file);
 
 	public static function frag(key:String):String
-		return Paths.getPath('shaders/$key.frag');
+		return findPath('shaders/$key.frag');
 
 	public static function vert(key:String):String
-		return Paths.getPath('shaders/$key.vert');
+		return findPath('shaders/$key.vert');
+
+	/** El archivo en el mod (también el del módulo) o la ruta de Psych si no está. */
+	static function findPath(file:String):String
+	{
+		var found:String = VSAssets.findFile(file);
+		return found != null ? found : Paths.getPath(file);
+	}
 
 	public static function video(key:String):String
 		return Paths.video(key);
@@ -655,6 +667,391 @@ class VSFunkinSound
 		FlxG.sound.playMusic(Paths.music(key), volume, loop);
 		return true;
 	}
+}
+
+/**
+ * funkin.Assets de V-Slice (en los .hxc también openfl.utils.Assets y lime.utils.Assets).
+ * En V-Slice, Polymod pone los archivos de los mods dentro de Assets; en Flux se leen
+ * del disco. "assets/shaders/x.frag", "shared:assets/shared/images/x.png" o la ruta que
+ * devuelve Paths se buscan en el mod actual, los globales y el mod del módulo; si no
+ * están, se usa Assets de OpenFL (los archivos del juego).
+ */
+@:keep
+class VSAssets
+{
+	/** Carpetas de contenido: lo que no es una de estas después de "assets/" es una biblioteca de V-Slice (shared, week1...). */
+	static var CONTENT_FOLDERS:Array<String> = [
+		'data', 'images', 'sounds', 'music', 'songs', 'shaders', 'fonts', 'videos', 'characters', 'stages', 'weeks', 'scripts'
+	];
+
+	public static var cache(get, never):openfl.utils.IAssetCache;
+
+	static function get_cache():openfl.utils.IAssetCache
+		return openfl.utils.Assets.cache;
+
+	public static function getPath(path:String):String
+	{
+		var file:String = findFile(path);
+		return file != null ? file : path;
+	}
+
+	public static function exists(path:String, ?type:openfl.utils.AssetType):Bool
+	{
+		if (findFile(path) != null)
+			return true;
+		return path != null && openfl.utils.Assets.exists(path, type);
+	}
+
+	public static function getText(path:String):String
+	{
+		var file:String = findFile(path);
+		if (file != null)
+			return File.getContent(file);
+		return (path != null && openfl.utils.Assets.exists(path, TEXT)) ? openfl.utils.Assets.getText(path) : null;
+	}
+
+	public static function getBytes(path:String):haxe.io.Bytes
+	{
+		var file:String = findFile(path);
+		if (file != null)
+			return File.getBytes(file);
+		return (path != null && openfl.utils.Assets.exists(path)) ? openfl.utils.Assets.getBytes(path) : null;
+	}
+
+	public static function getBitmapData(path:String, useCache:Bool = true):openfl.display.BitmapData
+	{
+		var file:String = findFile(path);
+		if (file != null)
+		{
+			var graphic:flixel.graphics.FlxGraphic = useCache ? FlxG.bitmap.get(file) : null;
+			return graphic != null ? graphic.bitmap : openfl.display.BitmapData.fromFile(file);
+		}
+		return (path != null && openfl.utils.Assets.exists(path, IMAGE)) ? openfl.utils.Assets.getBitmapData(path, useCache) : null;
+	}
+
+	public static function getSound(path:String):openfl.media.Sound
+	{
+		var file:String = findFile(path);
+		if (file != null)
+			return openfl.media.Sound.fromFile(file);
+		return (path != null && openfl.utils.Assets.exists(path, SOUND)) ? openfl.utils.Assets.getSound(path) : null;
+	}
+
+	public static function getMusic(path:String):openfl.media.Sound
+	{
+		var file:String = findFile(path);
+		if (file != null)
+			return openfl.media.Sound.fromFile(file);
+		return (path != null && openfl.utils.Assets.exists(path, MUSIC)) ? openfl.utils.Assets.getMusic(path) : null;
+	}
+
+	public static function loadText(path:String):lime.app.Future<String>
+		return lime.app.Future.withValue(getText(path));
+
+	public static function loadBytes(path:String):lime.app.Future<haxe.io.Bytes>
+		return lime.app.Future.withValue(getBytes(path));
+
+	public static function loadBitmapData(path:String):lime.app.Future<openfl.display.BitmapData>
+		return lime.app.Future.withValue(getBitmapData(path));
+
+	public static function loadSound(path:String):lime.app.Future<openfl.media.Sound>
+		return lime.app.Future.withValue(getSound(path));
+
+	public static function loadMusic(path:String):lime.app.Future<openfl.media.Sound>
+		return lime.app.Future.withValue(getMusic(path));
+
+	public static function hasLibrary(name:String):Bool
+		return openfl.utils.Assets.hasLibrary(name);
+
+	public static function getLibrary(name:String):lime.utils.AssetLibrary
+		return openfl.utils.Assets.getLibrary(name);
+
+	/** Los archivos del juego y los de los mods activos (como "assets/data/..."). */
+	public static function list(?type:openfl.utils.AssetType):Array<String>
+	{
+		var result:Array<String> = openfl.utils.Assets.list(type);
+		#if MODS_ALLOWED
+		var extensions:Array<String> = extensionsOf(type);
+		for (mod in FluxVSliceModules.enabledMods)
+			listFolder(Paths.mods(mod), '', 0, extensions, result);
+		#end
+		return result;
+	}
+
+	static function listFolder(dir:String, relative:String, depth:Int, extensions:Array<String>, out:Array<String>):Void
+	{
+		if (depth > 8 || !FileSystem.exists(dir) || !FileSystem.isDirectory(dir))
+			return;
+		for (entry in FileSystem.readDirectory(dir))
+		{
+			var path:String = '$dir/$entry';
+			var rel:String = relative.length > 0 ? '$relative/$entry' : entry;
+			if (FileSystem.isDirectory(path))
+				listFolder(path, rel, depth + 1, extensions, out);
+			else if (extensions == null || extensions.contains(haxe.io.Path.extension(entry).toLowerCase()))
+			{
+				var id:String = 'assets/$rel';
+				if (!out.contains(id))
+					out.push(id);
+			}
+		}
+	}
+
+	static function extensionsOf(type:openfl.utils.AssetType):Array<String>
+	{
+		if (type == null)
+			return null;
+		return switch (type)
+		{
+			case TEXT: ['json', 'txt', 'xml', 'frag', 'vert', 'hx', 'hxc', 'hxs', 'lua', 'csv', 'yaml', 'srt'];
+			case IMAGE: ['png', 'jpg', 'jpeg', 'bmp'];
+			case SOUND | MUSIC: ['ogg', 'wav', 'mp3'];
+			case FONT: ['ttf', 'otf'];
+			default: null;
+		}
+	}
+
+	/** El archivo de verdad para una ruta de V-Slice o de Psych, o null si no existe. */
+	public static function findFile(path:String):String
+	{
+		if (path == null || path.length == 0)
+			return null;
+		#if sys
+		if (isFile(path))
+			return path;
+		var key:String = contentPath(path);
+		if (key.length == 0)
+			return null;
+		if (key != path && isFile(key))
+			return key;
+		#if MODS_ALLOWED
+		var found:Dynamic = FluxVSliceModules.withModFallback(function():Dynamic {
+			var modPath:String = Paths.modFolders(key);
+			return isFile(modPath) ? modPath : null;
+		});
+		if (found != null)
+			return found;
+		#end
+		for (candidate in [Paths.getSharedPath(key), 'assets/$key'])
+			if (isFile(candidate))
+				return candidate;
+		#end
+		return null;
+	}
+
+	/**
+	 * La parte de la ruta que sirve para buscar en los mods:
+	 * "shared:assets/shared/images/a.png" -> "images/a.png", "assets/data/x.json" -> "data/x.json",
+	 * "mods/MiMod/shaders/x.frag" -> "shaders/x.frag".
+	 */
+	public static function contentPath(path:String):String
+	{
+		var p:String = path.split('\\').join('/');
+		var colon:Int = p.indexOf(':');
+		var slash:Int = p.indexOf('/');
+		if (colon > 1 && (slash < 0 || colon < slash))
+			p = p.substr(colon + 1); // "biblioteca:ruta" de V-Slice
+		while (p.startsWith('./'))
+			p = p.substr(2);
+
+		if (p.startsWith('mods/'))
+		{
+			p = p.substr(5);
+			var cut:Int = p.indexOf('/');
+			if (cut > 0 && !CONTENT_FOLDERS.contains(p.substr(0, cut).toLowerCase()))
+				p = p.substr(cut + 1); // mods/<mod>/...
+		}
+		else if (p.startsWith('assets/'))
+		{
+			p = p.substr(7);
+			var cut:Int = p.indexOf('/');
+			if (cut > 0 && !CONTENT_FOLDERS.contains(p.substr(0, cut).toLowerCase()))
+				p = p.substr(cut + 1); // assets/<biblioteca>/...
+		}
+		return p;
+	}
+
+	static inline function isFile(path:String):Bool
+		return path != null && FileSystem.exists(path) && !FileSystem.isDirectory(path);
+}
+
+/** CharacterType de V-Slice (en Flux son textos). */
+@:keep
+class VSCharacterType
+{
+	public static var BF(default, null):String = 'bf';
+	public static var DAD(default, null):String = 'dad';
+	public static var GF(default, null):String = 'gf';
+	public static var OTHER(default, null):String = 'other';
+}
+
+/**
+ * CharacterDataParser de V-Slice: crea personajes de Psych o de V-Slice
+ * (data/characters/<id>.json), del mod actual, los globales o el del módulo.
+ */
+@:keep
+class VSCharacterDataParser
+{
+	/** Un personaje nuevo (todavía no está en el escenario), o null si no existe. */
+	public static function fetchCharacter(charId:String, ?debug:Bool = false):objects.Character
+	{
+		if (charId == null || charId.length == 0)
+			return null;
+		return FluxVSliceModules.withModFallback(function():Dynamic {
+			return characterExists(charId) ? new objects.Character(0, 0, charId, false) : null;
+		});
+	}
+
+	/** Los datos de V-Slice del personaje (o lo básico de uno de Psych), o null. */
+	public static function fetchCharacterData(charId:String):Dynamic
+	{
+		if (charId == null || charId.length == 0)
+			return null;
+		return FluxVSliceModules.withModFallback(function():Dynamic {
+			#if FLUX_VSLICE
+			var data:Dynamic = flux.vslice.FluxVSliceCharacters.find(charId);
+			if (data != null)
+				return data;
+			#end
+			var path:String = Paths.getPath('characters/$charId.json', TEXT);
+			if (!FileSystem.exists(path))
+				return null;
+			var json:Dynamic = haxe.Json.parse(File.getContent(path));
+			return {
+				name: charId,
+				assetPath: json.image,
+				healthIcon: {id: json.healthicon != null ? json.healthicon : charId},
+				flipX: json.flip_x == true,
+				scale: json.scale != null ? json.scale : 1.0,
+				singTime: json.sing_duration != null ? json.sing_duration : 4.0
+			};
+		});
+	}
+
+	public static function characterExists(charId:String):Bool
+	{
+		if (charId == null || charId.length == 0)
+			return false;
+		if (FileSystem.exists(Paths.getPath('characters/$charId.json', TEXT)))
+			return true;
+		#if FLUX_VSLICE
+		return flux.vslice.FluxVSliceCharacters.find(charId) != null;
+		#else
+		return false;
+		#end
+	}
+
+	/** Los ids de todos los personajes (de Psych y de V-Slice), también en minúsculas. */
+	public static function listCharacterIds():Array<String>
+	{
+		var ids:Array<String> = [];
+		var folders:Array<String> = [];
+		for (sub in ['characters/', 'data/characters/'])
+			for (dir in Mods.directoriesWithFile(Paths.getSharedPath(), sub))
+				folders.push(dir);
+		#if MODS_ALLOWED
+		for (mod in FluxVSliceModules.enabledMods)
+			for (sub in ['characters/', 'data/characters/'])
+				folders.push(Paths.mods('$mod/$sub'));
+		#end
+		for (dir in folders)
+		{
+			if (!FileSystem.exists(dir) || !FileSystem.isDirectory(dir))
+				continue;
+			for (file in FileSystem.readDirectory(dir))
+			{
+				if (!file.toLowerCase().endsWith('.json'))
+					continue;
+				var id:String = file.substr(0, file.length - 5);
+				for (name in [id, id.toLowerCase()])
+					if (!ids.contains(name))
+						ids.push(name);
+			}
+		}
+		return ids;
+	}
+}
+
+/** Un evento del chart como SongEventData de V-Slice (PlayState.songEvents). */
+@:keep
+class VSSongEventData
+{
+	public var time:Float;
+	public var eventKind:String;
+	public var value:Dynamic;
+
+	public function new(time:Float, eventKind:String, value:Dynamic)
+	{
+		this.time = time;
+		this.eventKind = eventKind;
+		this.value = value;
+	}
+
+	/** Si ya pasó (V-Slice lo marca al ejecutarlo). */
+	public var activated(get, never):Bool;
+
+	function get_activated():Bool
+		return Conductor.songPosition >= time;
+
+	public function getDynamic(key:String):Dynamic
+		return (value != null && Reflect.isObject(value) && !Std.isOfType(value, String)) ? Reflect.field(value, key) : null;
+
+	public function getBool(key:String):Null<Bool>
+	{
+		var v:Dynamic = getDynamic(key);
+		return v == null ? null : (v == true || v == 'true');
+	}
+
+	public function getInt(key:String):Null<Int>
+	{
+		var v:Dynamic = getDynamic(key);
+		if (v == null)
+			return null;
+		if (Std.isOfType(v, Int))
+			return v;
+		if (Std.isOfType(v, Float))
+			return Std.int(v);
+		return Std.parseInt(Std.string(v));
+	}
+
+	public function getFloat(key:String):Null<Float>
+	{
+		var v:Dynamic = getDynamic(key);
+		if (v == null)
+			return null;
+		if (Std.isOfType(v, Float) || Std.isOfType(v, Int))
+			return v;
+		var parsed:Float = Std.parseFloat(Std.string(v));
+		return Math.isNaN(parsed) ? null : parsed;
+	}
+
+	public function getString(key:String):String
+	{
+		var v:Dynamic = getDynamic(key);
+		return v == null ? null : Std.string(v);
+	}
+
+	public function getArray(key:String):Array<Dynamic>
+	{
+		var v:Dynamic = getDynamic(key);
+		return Std.isOfType(v, Array) ? v : null;
+	}
+
+	/** El valor como objeto (si era un número o texto, queda en el campo `defaultKey`). */
+	public function valueAsStruct(?defaultKey:String = 'key'):Dynamic
+	{
+		if (value != null && Reflect.isObject(value) && !Std.isOfType(value, String) && !Std.isOfType(value, Array))
+			return value;
+		var result:Dynamic = {};
+		Reflect.setField(result, defaultKey, value);
+		return result;
+	}
+
+	public function clone():VSSongEventData
+		return new VSSongEventData(time, eventKind, value);
+
+	public function toString():String
+		return 'SongEventData($time ms, $eventKind, $value)';
 }
 
 /**

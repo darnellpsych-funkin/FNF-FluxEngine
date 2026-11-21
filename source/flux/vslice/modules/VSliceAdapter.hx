@@ -37,6 +37,7 @@ class VSliceAdapter
 	static var stage:VSStage;
 	static var voices:VSVoices;
 	static var song:VSSong;
+	static var songEvents:Array<VSSongEventData>;
 
 	public static function getField(o:Dynamic, f:String):Dynamic
 	{
@@ -104,6 +105,45 @@ class VSliceAdapter
 		stage = new VSStage(game);
 		voices = new VSVoices(game);
 		song = new VSSong(game);
+		songEvents = null;
+	}
+
+	/**
+	 * PlayState.songEvents de V-Slice: los eventos del chart, con los mismos nombres y
+	 * valores que llegan a onSongEvent (los que Flux convierte, como ChangeCharacter,
+	 * ya tienen el nombre de Psych y no se hacen dos veces).
+	 */
+	static function buildSongEvents():Array<VSSongEventData>
+	{
+		var list:Array<VSSongEventData> = [];
+		var events:Array<Dynamic> = PlayState.SONG != null ? PlayState.SONG.events : null;
+		if (events == null)
+			return list;
+		for (event in events)
+		{
+			var entry:Array<Dynamic> = event;
+			if (entry == null || entry.length < 2 || !Std.isOfType(entry[1], Array))
+				continue;
+			var time:Float = entry[0];
+			for (sub in (entry[1] : Array<Dynamic>))
+			{
+				var data:Array<Dynamic> = sub;
+				if (data == null || data.length == 0)
+					continue;
+				var value1:String = data.length > 1 && data[1] != null ? Std.string(data[1]) : '';
+				var value2:String = data.length > 2 && data[2] != null ? Std.string(data[2]) : '';
+				list.push(new VSSongEventData(time, Std.string(data[0]), FluxVSliceModules.eventValue(value1, value2)));
+			}
+		}
+		haxe.ds.ArraySort.sort(list, function(a, b) return a.time < b.time ? -1 : (a.time > b.time ? 1 : 0));
+		return list;
+	}
+
+	/** Los personajes que agregaron los scripts (addCharacter) bailan como los de Psych. */
+	public static function beatHit(game:PlayState, beat:Int):Void
+	{
+		if (game != null && cachedGame == game && stage != null)
+			stage.beatHit(beat);
 	}
 
 	static function playStateGet(game:PlayState, f:String):Dynamic
@@ -125,6 +165,11 @@ class VSliceAdapter
 			case 'currentSong':
 				checkGame(game);
 				return song;
+			case 'songEvents':
+				checkGame(game);
+				if (songEvents == null)
+					songEvents = buildSongEvents();
+				return songEvents;
 			case 'isGamePaused':
 				return game.paused;
 			case 'isInCutscene':
@@ -297,6 +342,39 @@ class VSliceAdapter
 				};
 			case 'isAnimationFinished':
 				return function() return character.isAnimationFinished();
+			case '_data':
+				// los datos de V-Slice (data/characters/<id>.json); null si es un personaje de Psych
+				return character.vsliceData;
+			case 'getDataFlipX':
+				return function() return character.vsliceData != null ? character.vsliceData.flipX == true : character.originalFlipX;
+			case 'initHealthIcon':
+				// el ícono de la barra de vida (Psych tiene uno por lado)
+				return function(isOpponent:Bool) {
+					var game:PlayState = PlayState.instance;
+					if (game == null)
+						return;
+					var icon = isOpponent ? game.iconP2 : game.iconP1;
+					if (icon != null)
+						icon.changeIcon(character.healthIcon);
+					game.reloadHealthBarColors();
+				};
+			case 'resetCharacter':
+				return Reflect.makeVarArgs(function(args:Array<Dynamic>) {
+					character.dance();
+					character.holdTimer = 0;
+					return null;
+				});
+			case 'getBaseScale':
+				return function() return character.jsonScale;
+			case 'setScale':
+				return function(scale:Float) {
+					#if FLUX_VSLICE
+					flux.vslice.FluxVSliceCharacters.setScale(character, scale);
+					#else
+					character.scale.set(scale, scale);
+					character.updateHitbox();
+					#end
+				};
 			default:
 		}
 		return UNHANDLED;
@@ -359,6 +437,7 @@ class VSliceAdapter
 		stage = null;
 		voices = null;
 		song = null;
+		songEvents = null;
 	}
 
 	/** Nombre legible de un valor para los mensajes de error. */
