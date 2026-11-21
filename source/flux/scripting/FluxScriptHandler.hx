@@ -15,6 +15,7 @@ using StringTools;
  *   .rhx         -> RuleScript   (define RULESCRIPT_ALLOWED)
  *   .hsp         -> hscript-plus (define HSCRIPT_PLUS_ALLOWED)
  *   .hxs         -> hscript-improved de Codename, con preset expandido (define HSCRIPT_IMPROVED_ALLOWED)
+ *   .luau        -> Luau, el Lua de Roblox, con el mismo preset que los .hxs (define LUAU_ALLOWED)
  */
 class FluxScriptHandler
 {
@@ -22,6 +23,7 @@ class FluxScriptHandler
 	public static var RULE_EXTENSIONS(default, null):Array<String> = ['.rhx'];
 	public static var HSPLUS_EXTENSIONS(default, null):Array<String> = ['.hsp'];
 	public static var HXS_EXTENSIONS(default, null):Array<String> = ['.hxs'];
+	public static var LUAU_EXTENSIONS(default, null):Array<String> = ['.luau'];
 
 	static var initialized:Bool = false;
 
@@ -33,6 +35,7 @@ class FluxScriptHandler
 		#if RULESCRIPT_ALLOWED exts = exts.concat(RULE_EXTENSIONS); #end
 		#if HSCRIPT_PLUS_ALLOWED exts = exts.concat(HSPLUS_EXTENSIONS); #end
 		#if HSCRIPT_IMPROVED_ALLOWED exts = exts.concat(HXS_EXTENSIONS); #end
+		#if LUAU_ALLOWED exts = exts.concat(LUAU_EXTENSIONS); #end
 		return exts;
 	}
 
@@ -62,6 +65,12 @@ class FluxScriptHandler
 			if (PlayState.instance != null && FlxG.state == PlayState.instance)
 				PlayState.instance.addTextToDebug(text, FlxColor.YELLOW);
 		};
+
+		#if LUAU_ALLOWED
+		// require() e import() de los .luau buscan igual que los .hxs
+		FluxLuau.fileResolver = FluxHxsPreset.findFile;
+		FluxLuau.importResolver = FluxHxsPreset.resolveImport;
+		#end
 
 		#if (RULESCRIPT_ALLOWED && HSCRIPT_ALLOWED)
 		// FlxColor es un abstract: "import flixel.util.FlxColor;" usa la versión de Psych
@@ -121,6 +130,11 @@ class FluxScriptHandler
 			for (ext in HXS_EXTENSIONS)
 				if (lower.endsWith(ext)) script = new FluxHScriptImproved(origin, code, FlxG.state);
 		#end
+		#if LUAU_ALLOWED
+		if (script == null)
+			for (ext in LUAU_EXTENSIONS)
+				if (lower.endsWith(ext)) script = new FluxLuau(origin, code);
+		#end
 
 		if (script == null) return null;
 
@@ -128,6 +142,9 @@ class FluxScriptHandler
 		preset(script);
 		#if HSCRIPT_IMPROVED_ALLOWED
 		if (script is FluxHScriptImproved) FluxHxsPreset.apply(script);
+		#end
+		#if LUAU_ALLOWED
+		if (script is FluxLuau) FluxHxsPreset.apply(script);
 		#end
 		if (extraVars != null)
 			for (name => value in extraVars)

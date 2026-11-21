@@ -1,6 +1,6 @@
 package flux.scripting;
 
-#if HSCRIPT_IMPROVED_ALLOWED
+#if FLUX_SCRIPTS_ALLOWED
 import flixel.FlxBasic;
 import flixel.FlxObject;
 import flixel.FlxState;
@@ -18,7 +18,7 @@ import psychlua.LuaUtils;
 using StringTools;
 
 /**
- * Lo que trae cada .hxs además del preset normal de Flux (game, add, setVar...).
+ * Lo que trae cada .hxs (y cada .luau) además del preset normal de Flux (game, add, setVar...).
  *
  * Clases listas para usar sin `import`: casi todo Flixel (sprites, grupos,
  * texto, tweens, timers, cámaras, sonido, barras, backdrop, trail...), cosas de
@@ -38,7 +38,7 @@ using StringTools;
  *   fileExists('data/x.json'), readFile('data/x.txt'), parseJson(texto), toJson(valor, true)
  *   callOnScripts('func', [args]), setOnScripts('var', valor), triggerEvent('Hey!', 'bf', '0.6')
  *   switchState('MiMenu'), resetState(), openCustomSubstate('nombre', true)
- *   importScript('scripts/utilidades')  // corre otro .hxs dentro de este
+ *   importScript('scripts/utilidades')  // corre otro .hxs (o .luau) dentro de este
  *   mouseX(), mouseY(), mouseClicked(), mousePressed(), mouseOverlaps(sprite)
  */
 class FluxHxsPreset
@@ -356,9 +356,10 @@ class FluxHxsPreset
 				game.triggerEvent(name, value1, value2, Conductor.songPosition);
 		});
 		script.set('importScript', function(path:String):Bool {
+			var ext:String = script.language == 'Luau' ? '.luau' : '.hxs';
 			var file:String = findFile(path);
-			if (file == null && !path.endsWith('.hxs'))
-				file = findFile(path + '.hxs');
+			if (file == null && !path.endsWith(ext))
+				file = findFile(path + ext);
 			if (file == null)
 			{
 				FluxScript.onWarning(script, 'importScript: no existe "$path"');
