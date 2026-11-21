@@ -5,6 +5,7 @@ import backend.Conductor;
 import backend.Difficulty;
 import backend.Paths;
 import flixel.FlxBasic;
+import flixel.FlxG;
 import flixel.group.FlxGroup.FlxTypedGroup;
 import flux.vslice.api.VSliceApi;
 import flux.vslice.modules.VSliceProxies;
@@ -34,10 +35,20 @@ class VSliceAdapter
 	static var cachedGame:PlayState;
 	static var playerStrumline:VSStrumline;
 	static var opponentStrumline:VSStrumline;
+
+	/** PlayState.currentStage (null si un script lo puso en null para cambiar de escenario). */
 	static var stage:VSStage;
+
+	/** Dónde estaba el escenario que se sacó con PlayState.remove(currentStage). */
+	static var lastStageIndex:Int = -1;
+
 	static var voices:VSVoices;
 	static var song:VSSong;
+	static var chart:VSSongDifficulty;
 	static var songEvents:Array<VSSongEventData>;
+
+	/** Datos de V-Slice que se le ponen a los personajes (name, characterType...). */
+	static var characterExtras:ObjectMap<Character, Dynamic> = new ObjectMap<Character, Dynamic>();
 
 	public static function getField(o:Dynamic, f:String):Dynamic
 	{
@@ -102,10 +113,38 @@ class VSliceAdapter
 		cachedGame = game;
 		playerStrumline = new VSStrumline(game, true);
 		opponentStrumline = new VSStrumline(game, false);
-		stage = new VSStage(game);
+		stage = VSStage.forGame(game);
+		lastStageIndex = -1;
 		voices = new VSVoices(game);
-		song = new VSSong(game);
+		song = VSSong.forGame(game);
+		chart = null;
 		songEvents = null;
+	}
+
+	/** El PlayState.currentStage de V-Slice de este PlayState. */
+	public static function currentStageOf(game:PlayState):VSStage
+	{
+		checkGame(game);
+		return stage;
+	}
+
+	/** Recuerda qué personaje es (bf, dad o gf) para characterType / name. */
+	public static function setCharacterRole(character:Character, role:String):Void
+	{
+		var extra:Dynamic = extraOf(character);
+		extra.characterType = role;
+		extra.name = role;
+	}
+
+	static function extraOf(character:Character):Dynamic
+	{
+		var extra:Dynamic = characterExtras.get(character);
+		if (extra == null)
+		{
+			extra = {};
+			characterExtras.set(character, extra);
+		}
+		return extra;
 	}
 
 	/**
@@ -132,7 +171,10 @@ class VSliceAdapter
 					continue;
 				var value1:String = data.length > 1 && data[1] != null ? Std.string(data[1]) : '';
 				var value2:String = data.length > 2 && data[2] != null ? Std.string(data[2]) : '';
-				list.push(new VSSongEventData(time, Std.string(data[0]), FluxVSliceModules.eventValue(value1, value2)));
+				var eventData:VSSongEventData = new VSSongEventData(time, Std.string(data[0]), FluxVSliceModules.eventValue(value1, value2));
+				eventData.value1 = value1;
+				eventData.value2 = value2;
+				list.push(eventData);
 			}
 		}
 		haxe.ds.ArraySort.sort(list, function(a, b) return a.time < b.time ? -1 : (a.time > b.time ? 1 : 0));
@@ -144,6 +186,47 @@ class VSliceAdapter
 	{
 		if (game != null && cachedGame == game && stage != null)
 			stage.beatHit(beat);
+	}
+
+	/** PlayState.add / insert / remove de V-Slice: también aceptan el escenario (currentStage). */
+	static function stageAwareAdd(game:PlayState):Dynamic
+	{
+		return function(object:Dynamic):Dynamic {
+			if (Std.isOfType(object, VSStage))
+			{
+				(object : VSStage).attachTo(game, lastStageIndex);
+				return object;
+			}
+			return game.add(object);
+		};
+	}
+
+	static function stageAwareInsert(game:PlayState):Dynamic
+	{
+		return function(position:Int, object:Dynamic):Dynamic {
+			if (Std.isOfType(object, VSStage))
+			{
+				(object : VSStage).attachTo(game, position);
+				return object;
+			}
+			return game.insert(position, object);
+		};
+	}
+
+	static function stageAwareRemove(game:PlayState):Dynamic
+	{
+		return Reflect.makeVarArgs(function(args:Array<Dynamic>):Dynamic {
+			var object:Dynamic = args.length > 0 ? args[0] : null;
+			var splice:Bool = args.length > 1 && args[1] == true;
+			if (Std.isOfType(object, VSStage))
+			{
+				var index:Int = (object : VSStage).detachFrom(game);
+				if (index >= 0)
+					lastStageIndex = index;
+				return object;
+			}
+			return game.remove(object, splice);
+		});
 	}
 
 	static function playStateGet(game:PlayState, f:String):Dynamic
@@ -159,6 +242,30 @@ class VSliceAdapter
 			case 'currentStage':
 				checkGame(game);
 				return stage;
+			case 'currentChart':
+				checkGame(game);
+				if (chart == null)
+					chart = song.getDifficulty();
+				return chart;
+			case 'add':
+				checkGame(game);
+				return stageAwareAdd(game);
+			case 'insert':
+				checkGame(game);
+				return stageAwareInsert(game);
+			case 'remove':
+				checkGame(game);
+				return stageAwareRemove(game);
+			case 'resetCameraZoom':
+				checkGame(game);
+				return function() {
+					if (stage != null)
+						game.defaultCamZoom = stage.camZoom;
+					FlxG.camera.zoom = game.defaultCamZoom;
+					#if FLUX_VSLICE
+					flux.vslice.FluxVSliceEvents.stageChanged();
+					#end
+				};
 			case 'vocals':
 				checkGame(game);
 				return voices;
@@ -185,9 +292,11 @@ class VSliceAdapter
 			case 'isMinimalMode' | 'needsReset' | 'disableKeys':
 				return false;
 			case 'currentDifficulty':
-				return Paths.formatToSongPath(Difficulty.getString());
+				checkGame(game);
+				return song.getDifficulty().difficulty;
 			case 'currentVariation':
-				return 'default';
+				checkGame(game);
+				return song.variation;
 			case 'camCutscene':
 				return game.camOther;
 			case 'dispatchEvent':
@@ -225,6 +334,16 @@ class VSliceAdapter
 				game.paused = value == true;
 				return true;
 			case 'isMinimalMode' | 'needsReset' | 'disableKeys' | 'isInCountdown':
+				return true;
+			case 'currentStage':
+				// para cambiar de escenario: PlayState.instance.currentStage = StageRegistry.instance.fetchEntry(id)
+				checkGame(game);
+				if (value == null || Std.isOfType(value, VSStage))
+				{
+					stage = value;
+					if (stage != null)
+						stage.makeCurrent(game);
+				}
 				return true;
 			default:
 		}
@@ -366,6 +485,37 @@ class VSliceAdapter
 				});
 			case 'getBaseScale':
 				return function() return character.jsonScale;
+			case 'characterOrigin':
+				// el centro de abajo del personaje, relativo a su x/y
+				return new flixel.math.FlxPoint(character.width / 2, character.height);
+			case 'feetPosition':
+				return new flixel.math.FlxPoint(character.x + character.width / 2, character.y + character.height);
+			case 'originalPosition':
+				var original:Dynamic = extraOf(character).originalPosition;
+				return original != null ? original : new flixel.math.FlxPoint(character.x, character.y);
+			case 'cameraFocusPoint':
+				var mid = character.getMidpoint();
+				return new flixel.math.FlxPoint(mid.x + character.cameraPosition[0], mid.y + character.cameraPosition[1]);
+			case 'characterType':
+				var extra:Dynamic = characterExtras.get(character);
+				return extra != null && extra.characterType != null ? extra.characterType : roleInGame(character);
+			case 'name':
+				var extra:Dynamic = characterExtras.get(character);
+				return extra != null && extra.name != null ? extra.name : roleInGame(character);
+			case 'debug':
+				return character.debugMode;
+			case 'globalOffsets':
+				#if FLUX_VSLICE
+				return character.vsliceGlobalOffsets;
+				#else
+				return [0, 0];
+				#end
+			case 'shouldBop':
+				return !character.skipDance;
+			case 'danceEvery':
+				return character.danceEveryNumBeats;
+			case 'getDeathCameraOffsets':
+				return function() return [0.0, 0.0];
 			case 'setScale':
 				return function(scale:Float) {
 					#if FLUX_VSLICE
@@ -387,9 +537,40 @@ class VSliceAdapter
 			case 'singTimeSteps':
 				character.singDuration = value;
 				return true;
+			case 'debug':
+				character.debugMode = value == true;
+				return true;
+			case 'name' | 'characterType' | 'originalPosition':
+				Reflect.setField(extraOf(character), f, value);
+				return true;
+			case 'shouldBop':
+				character.skipDance = value != true;
+				return true;
+			case 'danceEvery':
+				var every:Float = value;
+				character.skipDance = every <= 0;
+				if (every > 0)
+					character.danceEveryNumBeats = Std.int(Math.max(1, Math.round(every)));
+				return true;
 			default:
 		}
 		return false;
+	}
+
+	/** bf, dad o gf si el personaje es uno de los del PlayState; si no, "other". */
+	static function roleInGame(character:Character):String
+	{
+		var game:PlayState = PlayState.instance;
+		if (game != null)
+		{
+			if (character == game.boyfriend)
+				return 'bf';
+			if (character == game.dad)
+				return 'dad';
+			if (character == game.gf)
+				return 'gf';
+		}
+		return 'other';
 	}
 
 	static function isSinging(character:Character):Bool
@@ -432,11 +613,14 @@ class VSliceAdapter
 	public static function clear():Void
 	{
 		zIndexes = new ObjectMap<FlxBasic, Int>();
+		characterExtras = new ObjectMap<Character, Dynamic>();
 		cachedGame = null;
 		playerStrumline = opponentStrumline = null;
 		stage = null;
+		lastStageIndex = -1;
 		voices = null;
 		song = null;
+		chart = null;
 		songEvents = null;
 	}
 

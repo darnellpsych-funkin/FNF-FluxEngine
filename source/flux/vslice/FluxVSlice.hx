@@ -113,6 +113,7 @@ class FluxVSlice
 		var otherEvents:Array<Dynamic> = allEvents.filter(e -> e.e != 'FocusCamera');
 		if (chart.notes == null) chart.notes = {};
 		if (chart.scrollSpeed == null) chart.scrollSpeed = {};
+		var allDifficulties:Array<String> = [for (d in difficulties) Std.string(d)];
 		playData.difficulties = [diff]; // solo convertir la dificultad pedida
 
 		var pack:PsychPackage = VSlice.convertToPsych(cast chart, cast metadata);
@@ -140,10 +141,18 @@ class FluxVSlice
 			id: id,
 			variation: variation,
 			difficulty: diff,
+			difficulties: allDifficulties,
 			instrumental: instrumental,
 			playerVocals: playerVocals,
 			opponentVocals: opponentVocals,
-			noteStyle: playData.noteStyle
+			noteStyle: playData.noteStyle,
+			// para PlayState.currentSong / currentChart de los scripts
+			songName: metadata.songName,
+			artist: metadata.artist,
+			charter: metadata.charter,
+			album: playData.album,
+			generatedBy: metadata.generatedBy,
+			timeChanges: timeChanges
 		});
 		return song;
 	}

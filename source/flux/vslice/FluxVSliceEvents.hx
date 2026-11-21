@@ -28,10 +28,43 @@ class FluxVSliceEvents
 	static var stageZoomFor:PlayState;
 	static var stageZoom:Float = 1;
 
+	/** Los eventos que Flux hace solo (si un mod trae un script con el mismo nombre, se usa este). */
+	public static var BUILT_IN(default, null):Array<String> = ['ZoomCamera', 'SetCameraBop', 'Subtitles', 'SetHealthIcon', 'SetTargetBopSpeed', 'PlayAnimation'];
+
+	public static inline function handles(eventName:String):Bool
+		return BUILT_IN.contains(eventName);
+
+	/** Al cambiar de escenario: ZoomCamera "stage" vuelve a tomar el zoom del escenario nuevo. */
+	public static function stageChanged():Void
+		stageZoomFor = null;
+
 	public static function trigger(game:PlayState, eventName:String, value1:String, value2:String)
 	{
 		switch (eventName)
 		{
+			case 'PlayAnimation':
+				// las de bf, dad y gf ya son "Play Animation" de Psych; aquí quedan los props y otros personajes
+				var v:Dynamic = parse(value1);
+				if (v == null || v.target == null || v.anim == null) return;
+				var target:String = Std.string(v.target);
+				var anim:String = Std.string(v.anim);
+				var force:Bool = v.force == true;
+				var prop:VSliceProp = FluxVSliceStage.current != null ? FluxVSliceStage.current.getNamedProp(target) : null;
+				if (prop != null)
+				{
+					prop.playAnimation(anim, force);
+					return;
+				}
+				var object:Dynamic = game.variables.get(target);
+				if (object != null && Std.isOfType(object, objects.Character))
+				{
+					var character:objects.Character = cast object;
+					character.playAnim(anim, force);
+					character.specialAnim = true;
+				}
+				else if (object != null && Std.isOfType(object, FlxSprite) && (object : FlxSprite).animation != null)
+					(object : FlxSprite).animation.play(anim, force);
+
 			case 'ZoomCamera':
 				var v:Dynamic = parse(value1);
 				if (v == null) return;

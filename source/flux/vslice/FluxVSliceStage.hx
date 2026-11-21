@@ -41,11 +41,31 @@ class FluxVSliceStage
 			return null;
 		if (Paths.fileExists('stages/$id.json', TEXT)) // si hay uno de Psych, se usa ese
 			return null;
+		current = fromId(id);
+		return current;
+	}
+
+	/**
+	 * Un escenario de V-Slice sin armar ni agregar al juego (para cambiar de escenario
+	 * a mitad de la canción, como StageRegistry.fetchEntry). Null si no existe.
+	 */
+	public static function fromId(id:String):FluxVSliceStage
+	{
+		if (id == null || id.length == 0)
+			return null;
 		var data:Dynamic = FluxVSliceAssets.readJson(FluxVSliceAssets.findData('data/stages/$id.json'));
 		if (data == null || !Std.isOfType(data.props, Array))
 			return null;
-		current = new FluxVSliceStage(id, data);
-		return current;
+		return new FluxVSliceStage(id, data);
+	}
+
+	/** Los JSON de V-Slice de data/stages/ (de los mods activos y del juego). */
+	public static function readData(id:String):Dynamic
+	{
+		if (id == null || id.length == 0)
+			return null;
+		var data:Dynamic = FluxVSliceAssets.readJson(FluxVSliceAssets.findData('data/stages/$id.json'));
+		return (data != null && Std.isOfType(data.props, Array)) ? data : null;
 	}
 
 	function new(id:String, data:Dynamic)
@@ -124,10 +144,23 @@ class FluxVSliceStage
 
 	/** Crea los props y agrega todo al PlayState ordenado por zIndex (en lugar de add(gfGroup)...). */
 	public function build(game:PlayState):Void
-	{
-		this.game = game;
-		var entries:Array<{z:Int, object:FlxBasic}> = [];
+		attach(game);
 
+	/** Si ya se crearon los props (buildProps). */
+	public var built(default, null):Bool = false;
+
+	/** Si los props están en el juego (attach). */
+	public var attached(default, null):Bool = false;
+
+	/** Lo que los scripts agregaron al escenario con stage.add(...): se va con el escenario. */
+	public var extras(default, null):Array<FlxBasic> = [];
+
+	/** Crea los props (sin agregarlos al juego todavía). Stage.buildStage de V-Slice. */
+	public function buildProps():Void
+	{
+		if (built)
+			return;
+		built = true;
 		for (propData in (data.props : Array<Dynamic>))
 		{
 			var prop:VSliceProp = makeProp(propData);
@@ -135,17 +168,34 @@ class FluxVSliceStage
 				continue;
 			props.push(prop);
 			if (prop.name != null && prop.name.length > 0)
-			{
 				namedProps.set(prop.name, prop);
-				game.variables.set(prop.name, prop); // getProperty('bg.alpha') desde Lua/HScript
-			}
 			setZIndex(prop, prop.zIndex);
-			entries.push({z: prop.zIndex, object: prop});
+		}
+	}
+
+	/**
+	 * Agrega los props y los grupos de los personajes al PlayState ordenados por zIndex,
+	 * a partir de `index` (por defecto al final). Si ya estaban, los reordena ahí.
+	 */
+	public function attach(game:PlayState, ?index:Int):Void
+	{
+		buildProps();
+		this.game = game;
+		current = this;
+		var entries:Array<{z:Int, object:FlxBasic}> = [];
+
+		for (prop in props)
+		{
+			if (prop.name != null && prop.name.length > 0)
+				game.variables.set(prop.name, prop); // getProperty('bg.alpha') desde Lua/HScript
+			entries.push({z: zIndexOf(prop), object: prop});
 		}
 
 		for (role in ['gf', 'dad', 'bf'])
 		{
 			var group:FlxSpriteGroup = groupOf(role);
+			if (group == null)
+				continue;
 			zIndexes.set(group, zIndexOfRole(role));
 			entries.push({z: zIndexOfRole(role), object: group});
 			// el grupo le pasa su scroll a los personajes que se agreguen después
@@ -154,10 +204,160 @@ class FluxVSliceStage
 			group.scrollFactor.set(scroll[0], scroll[1]);
 		}
 
+		for (extra in extras)
+			if (extra != null && extra.exists)
+				entries.push({z: zIndexOf(extra), object: extra});
+
 		// con el mismo zIndex queda el orden del JSON y los personajes después de los props (como V-Slice)
 		haxe.ds.ArraySort.sort(entries, function(a, b) return a.z - b.z);
+
+		var at:Int = (index == null || index < 0 || index > game.members.length) ? game.members.length : index;
 		for (entry in entries)
-			game.add(entry.object);
+		{
+			var i:Int = game.members.indexOf(entry.object);
+			if (i < 0)
+				continue;
+			game.remove(entry.object, true);
+			if (i < at)
+				at--;
+		}
+		for (entry in entries)
+			game.insert(at++, entry.object);
+		attached = true;
+	}
+
+	/**
+	 * Saca del PlayState los props, lo que agregaron los scripts y los grupos de los
+	 * personajes. Devuelve dónde empezaba el escenario (-1 si no estaba).
+	 */
+	public function detach():Int
+	{
+		if (game == null)
+			return -1;
+		var objects:Array<FlxBasic> = [];
+		for (prop in props)
+			objects.push(prop);
+		for (extra in extras)
+			objects.push(extra);
+		for (role in ['gf', 'dad', 'bf'])
+		{
+			var group:FlxSpriteGroup = groupOf(role);
+			if (group != null)
+				objects.push(group);
+		}
+
+		var first:Int = -1;
+		for (object in objects)
+		{
+			var i:Int = game.members.indexOf(object);
+			if (i < 0)
+				continue;
+			if (first < 0 || i < first)
+				first = i;
+			game.remove(object, true);
+		}
+		for (name => prop in namedProps)
+			if (game.variables.get(name) == prop)
+				game.variables.remove(name);
+		attached = false;
+		if (current == this)
+			current = null;
+		return first;
+	}
+
+	/** Agrega algo al escenario (Stage.add de V-Slice): se ordena por zIndex con los props. */
+	public function addExtra(object:FlxBasic):Void
+	{
+		if (object == null)
+			return;
+		if (!extras.contains(object))
+			extras.push(object);
+		if (!zIndexes.exists(object))
+			zIndexes.set(object, 0);
+		if (game != null && attached && !game.members.contains(object))
+			game.add(object);
+	}
+
+	public function removeExtra(object:FlxBasic):Void
+	{
+		extras.remove(object);
+		zIndexes.remove(object);
+	}
+
+	/** Stage.kill de V-Slice: los props dejan de verse y de actualizarse. */
+	public function killProps():Void
+	{
+		for (prop in props)
+			if (prop != null)
+				prop.kill();
+		for (extra in extras)
+			if (extra != null)
+				extra.kill();
+	}
+
+	public function reviveProps():Void
+	{
+		for (prop in props)
+			if (prop != null)
+				prop.revive();
+		for (extra in extras)
+			if (extra != null)
+				extra.revive();
+	}
+
+	/** Stage.resetStage de V-Slice: los props con nombre vuelven a su lugar del JSON. */
+	public function resetProps():Void
+	{
+		for (propData in (data.props : Array<Dynamic>))
+		{
+			var name:String = propData.name != null ? Std.string(propData.name) : null;
+			var prop:VSliceProp = name != null ? namedProps.get(name) : null;
+			if (prop == null)
+				continue;
+			var position:Array<Float> = floats(propData.position, [0, 0]);
+			prop.x = position[0];
+			prop.y = position[1];
+			setZIndex(prop, propData.zIndex != null ? Std.int(propData.zIndex) : 0);
+			prop.danceEvery = propData.danceEvery != null ? propData.danceEvery : 0;
+		}
+	}
+
+	/** Zoom del escenario (cameraZoom del JSON). */
+	public var cameraZoom(get, never):Float;
+
+	function get_cameraZoom():Float
+		return data.cameraZoom != null ? data.cameraZoom : 1.0;
+
+	/** Donde va parado el personaje (bf, dad o gf) según el JSON: [x, y]. */
+	public function rolePosition(role:String):Array<Float>
+	{
+		var charData:Dynamic = roleData(role);
+		return floats(charData != null ? charData.position : null, [0, 0]);
+	}
+
+	/** Si el escenario tiene lugar para ese personaje (bf, dad o gf). */
+	public function hasRole(role:String):Bool
+		return roleData(role) != null;
+
+	/**
+	 * Al cambiar de escenario a mitad de la canción: el PlayState toma el zoom de
+	 * cámara (si `zoom`), los offsets de cámara y el nombre de este escenario.
+	 */
+	public function applyTo(game:PlayState, zoom:Bool):Void
+	{
+		this.game = game;
+		current = this;
+		game.vsliceStage = this;
+		PlayState.curStage = id;
+		game.boyfriendCameraOffset = cameraOffsetsOf('bf');
+		game.opponentCameraOffset = cameraOffsetsOf('dad');
+		game.girlfriendCameraOffset = cameraOffsetsOf('gf');
+		if (zoom)
+		{
+			game.defaultCamZoom = cameraZoom;
+			FlxG.camera.zoom = cameraZoom;
+		}
+		FluxVSliceEvents.stageChanged();
 	}
 
 	/** Los props bailan como en V-Slice (Bopper.onStepHit). */

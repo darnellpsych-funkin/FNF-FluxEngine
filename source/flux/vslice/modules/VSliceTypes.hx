@@ -55,10 +55,19 @@ class VSliceTypes
 		return result;
 	}
 
-	/** Variables que todo módulo tiene sin importar nada (como en Polymod). */
+	/** Variables que todo módulo tiene sin importar nada (los "default imports" de V-Slice). */
 	public static function applyGlobals(variables:Map<String, Dynamic>):Void
 	{
 		variables.set('Reflect', VSReflectUtil);
+		var defaults:Map<String, Dynamic> = new Map<String, Dynamic>();
+		defaults.set('Paths', VSPaths);
+		defaults.set('Assets', VSAssets);
+		defaults.set('Preferences', VSPreferences);
+		defaults.set('Constants', VSConstants);
+		defaults.set('FlxG', flixel.FlxG);
+		for (name => type in defaults)
+			if (!variables.exists(name))
+				variables.set(name, type);
 	}
 
 	static function init():Void
@@ -83,7 +92,11 @@ class VSliceTypes
 		add(['haxe.ds.ObjectMap'], haxe.ds.ObjectMap);
 
 		// --- módulos y eventos ---
-		add(['funkin.modding.module.Module'], Module);
+		add(['funkin.modding.module.Module', 'funkin.modding.module.ScriptedModule'], Module);
+		add(['funkin.play.event.SongEvent', 'funkin.play.event.ScriptedSongEvent'], flux.vslice.api.SongEvent);
+		add(['funkin.data.event.SongEventRegistry'], flux.vslice.api.SongEvent.VSSongEventRegistry);
+		add(['funkin.data.stage.StageRegistry'], VSStageRegistry);
+		add(['funkin.modding.PolymodErrorHandler'], VSPolymodErrorHandler);
 		add(['funkin.play.notes.notekind.NoteKind', 'funkin.play.notes.notekind.ScriptedNoteKind'], flux.vslice.api.NoteKind);
 		add(['funkin.play.notes.notekind.NoteKindManager'], flux.vslice.api.NoteKind.VSNoteKindManager);
 		add(['funkin.modding.module.ModuleHandler'], VSModuleHandler);
@@ -121,9 +134,15 @@ class VSliceTypes
 			'funkin.play.character.SparrowCharacter',
 			'funkin.play.character.MultiSparrowCharacter',
 			'funkin.play.character.PackerCharacter',
-			'funkin.play.character.AnimateAtlasCharacter'
+			'funkin.play.character.AnimateAtlasCharacter',
+			'funkin.play.character.MultiAnimateAtlasCharacter'
 		], objects.Character);
-		add(['funkin.play.character.CharacterDataParser'], VSCharacterDataParser);
+		add([
+			'funkin.play.character.CharacterDataParser',
+			'funkin.data.character.CharacterDataParser',
+			'funkin.data.character.CharacterData.CharacterDataParser'
+		], VSCharacterDataParser);
+		add(['funkin.play.components.HealthIcon'], objects.HealthIcon);
 		add(['funkin.play.character.CharacterType', 'funkin.play.character.BaseCharacter.CharacterType'], VSCharacterType);
 		add(['funkin.data.song.SongData.SongEventData', 'funkin.data.song.SongEventData'], VSSongEventData);
 		add(['funkin.play.stage.Stage'], VSStage);
@@ -138,6 +157,20 @@ class VSliceTypes
 		add(['funkin.Preferences'], VSPreferences);
 		add(['funkin.util.Constants'], VSConstants);
 		add(['funkin.graphics.FunkinSprite'], VSFunkinSprite);
+		add(['funkin.FunkinMemory'], VSFunkinMemory);
+		add(['funkin.util.FlxTweenUtil'], VSFlxTweenUtil);
+		// tipos de datos que solo se usan en anotaciones (así no avisa que faltan)
+		add([
+			'funkin.data.stage.StageData',
+			'funkin.data.event.SongEventSchema',
+			'funkin.data.event.SongEventData',
+			'funkin.data.song.SongData',
+			'funkin.data.song.SongData.SongNoteData',
+			'funkin.data.song.SongData.SongMetadata',
+			'funkin.data.character.CharacterData',
+			'funkin.play.song.Song.SongDifficulty',
+			'funkin.play.event.SongEvent.SongEventParams'
+		], VSDataType);
 		add(['funkin.graphics.FunkinCamera'], flixel.FlxCamera);
 		add(['funkin.audio.FunkinSound'], VSFunkinSound);
 		add(['funkin.ui.MusicBeatState'], backend.MusicBeatState);

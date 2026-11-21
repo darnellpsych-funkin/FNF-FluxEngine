@@ -331,6 +331,16 @@ class HxcLoader
 				while (j < n && isIdentChar(StringTools.fastCodeAt(code, j)))
 					j++;
 				var word:String = code.substring(i, j);
+				if (word == 'typedef' && !afterDot(code, i))
+				{
+					// los typedef son solo tipos: se sacan (el parser no entiende `?campo:Tipo`)
+					var end:Int = typedefEnd(code, j);
+					var removed:String = code.substring(i, end);
+					for (k in 0...removed.length)
+						out.add(removed.charAt(k) == '\n' ? '\n' : ' ');
+					i = end;
+					continue;
+				}
 				if ((word == 'final' || word == 'dynamic') && !afterDot(code, i))
 				{
 					var k:Int = j;
@@ -354,6 +364,48 @@ class HxcLoader
 			i++;
 		}
 		return out.toString();
+	}
+
+	/** Dónde termina `typedef X = { ... }` o `typedef X = Tipo;` (después del `;` si hay). */
+	static function typedefEnd(code:String, from:Int):Int
+	{
+		var n:Int = code.length;
+		var i:Int = from;
+		while (i < n && code.charAt(i) != '=' && code.charAt(i) != '{' && code.charAt(i) != ';')
+			i++;
+		if (i < n && code.charAt(i) == '=')
+			i++;
+		while (i < n && isSpace(StringTools.fastCodeAt(code, i)))
+			i++;
+		if (i < n && code.charAt(i) == '{')
+		{
+			var depth:Int = 0;
+			while (i < n)
+			{
+				var c:String = code.charAt(i);
+				if (c == '{')
+					depth++;
+				else if (c == '}')
+				{
+					depth--;
+					if (depth == 0)
+					{
+						i++;
+						break;
+					}
+				}
+				i++;
+			}
+		}
+		else
+			while (i < n && code.charAt(i) != ';' && code.charAt(i) != '\n')
+				i++;
+		var k:Int = i;
+		while (k < n && (code.charAt(k) == ' ' || code.charAt(k) == '\t'))
+			k++;
+		if (k < n && code.charAt(k) == ';')
+			i = k + 1;
+		return i;
 	}
 
 	static inline function isIdentStart(c:Int):Bool

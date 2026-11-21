@@ -12,7 +12,9 @@ import flixel.util.FlxColor;
 import flux.vslice.api.Module;
 import flux.vslice.api.NoteKind;
 import flux.vslice.api.ScriptEvent;
+import flux.vslice.api.SongEvent;
 import flux.vslice.api.VSliceApi.VSScoring;
+import flux.vslice.api.VSliceApi.VSSongEventData;
 import flux.vslice.modules.HxcLoader;
 import haxe.ds.ObjectMap;
 import objects.Note;
@@ -49,6 +51,8 @@ typedef VSliceClassInfo =
  *
  * También los tipos de nota (`extends NoteKind` / `ScriptedNoteKind`): reciben
  * los eventos de las notas de su tipo y los demás eventos de la canción.
+ * Y los eventos del chart con script (`extends SongEvent` / `ScriptedSongEvent`):
+ * Flux llama a su handleEvent(data) cuando la canción llega a un evento con su id.
  * Las clases de canciones, escenarios y personajes (Song, Stage, Character...)
  * todavía se ignoran con un aviso.
  */
@@ -59,6 +63,12 @@ class FluxVSliceModules
 
 	/** Tipos de nota de los .hxc (tipo de nota del chart -> script). */
 	public static var noteKinds(default, null):Map<String, NoteKind> = new Map<String, NoteKind>();
+
+	/** Eventos con script de los .hxc (id del evento -> script). */
+	public static var songEvents(default, null):Map<String, SongEvent> = new Map<String, SongEvent>();
+
+	/** Los eventos con script que usa la canción actual (reciben los eventos de PlayState). */
+	public static var activeEvents(default, null):Array<SongEvent> = [];
 
 	/** Clases encontradas en los .hxc (nombre -> datos). */
 	public static var classes(default, null):Map<String, VSliceClassInfo> = new Map<String, VSliceClassInfo>();
@@ -72,6 +82,7 @@ class FluxVSliceModules
 	static var classOrder:Array<String> = [];
 	static var moduleInfo:ObjectMap<Module, VSliceClassInfo> = new ObjectMap<Module, VSliceClassInfo>();
 	static var kindInfo:ObjectMap<NoteKind, VSliceClassInfo> = new ObjectMap<NoteKind, VSliceClassInfo>();
+	static var eventInfo:ObjectMap<SongEvent, VSliceClassInfo> = new ObjectMap<SongEvent, VSliceClassInfo>();
 	static var initialized:Bool = false;
 	static var loadedSignature:String = null;
 	static var hookedState:FlxState = null;
@@ -100,9 +111,9 @@ class FluxVSliceModules
 		FlxG.signals.focusGained.add(function() if (hasModules()) callEvent(new FocusScriptEvent(ScriptEventType.FOCUS_GAINED)));
 	}
 
-	/** Si hay algo a quien mandarle eventos (módulos o tipos de nota). */
+	/** Si hay algo a quien mandarle eventos (módulos, tipos de nota o eventos de la canción). */
 	public static inline function hasModules():Bool
-		return modules.length > 0 || noteKindCount > 0;
+		return modules.length > 0 || noteKindCount > 0 || activeEvents.length > 0;
 
 	static var noteKindCount:Int = 0;
 
@@ -130,10 +141,30 @@ class FluxVSliceModules
 
 		var loaded:Array<String> = [];
 		var loadedKinds:Array<String> = [];
+		var loadedEvents:Array<String> = [];
 		var ignored:Array<String> = [];
 		for (name in classOrder)
 		{
 			var info:VSliceClassInfo = classes.get(name);
+			if (info.superName == 'SongEvent' || info.superName == 'ScriptedSongEvent')
+			{
+				var songEvent:SongEvent = null;
+				try
+				{
+					songEvent = new FluxScriptedSongEvent(info.name, [info.name]);
+				}
+				catch (e:Dynamic)
+				{
+					reportError('${info.name} (${info.file})', 'no se pudo crear: ' + errorText(e));
+					continue;
+				}
+				if (songEvent.id == null || songEvent.id.length == 0)
+					songEvent.id = info.name;
+				eventInfo.set(songEvent, info);
+				songEvents.set(songEvent.id, songEvent);
+				loadedEvents.push('${songEvent.id} (${info.name}) [${info.mod}]');
+				continue;
+			}
 			if (info.superName == 'NoteKind' || info.superName == 'ScriptedNoteKind')
 			{
 				var kind:NoteKind = null;
@@ -180,8 +211,10 @@ class FluxVSliceModules
 			log('Módulos de V-Slice cargados: ' + loaded.join(', '));
 		if (loadedKinds.length > 0)
 			log('Tipos de nota de V-Slice cargados: ' + loadedKinds.join(', '));
+		if (loadedEvents.length > 0)
+			log('Eventos de V-Slice cargados: ' + loadedEvents.join(', '));
 		if (ignored.length > 0)
-			log('Clases de V-Slice que Flux todavía no usa (por ahora módulos y tipos de nota): ' + ignored.join(', '));
+			log('Clases de V-Slice que Flux todavía no usa (por ahora módulos, tipos de nota y eventos): ' + ignored.join(', '));
 
 		callEvent(new ScriptEvent(ScriptEventType.CREATE));
 	}
@@ -197,6 +230,9 @@ class FluxVSliceModules
 		noteKinds = new Map<String, NoteKind>();
 		kindInfo = new ObjectMap<NoteKind, VSliceClassInfo>();
 		noteKindCount = 0;
+		songEvents = new Map<String, SongEvent>();
+		eventInfo = new ObjectMap<SongEvent, VSliceClassInfo>();
+		activeEvents = [];
 		classes = new Map<String, VSliceClassInfo>();
 		classOrder = [];
 		errorCounts = new Map<String, Int>();
@@ -306,7 +342,8 @@ class FluxVSliceModules
 
 	/**
 	 * Manda el evento a todos los módulos activos (por prioridad) y, en una
-	 * canción, a los tipos de nota (como el PlayState de V-Slice: módulos primero).
+	 * canción, a los eventos con script que usa y a los tipos de nota
+	 * (el orden del PlayState de V-Slice: módulos, eventos, tipos de nota).
 	 */
 	public static function callEvent(event:ScriptEvent):Void
 	{
@@ -320,7 +357,15 @@ class FluxVSliceModules
 			if (!event.shouldPropagate)
 				return;
 		}
-		if (noteKindCount > 0 && PlayState.instance != null && FlxG.state == PlayState.instance)
+		if (PlayState.instance == null || FlxG.state != PlayState.instance)
+			return;
+		for (songEvent in activeEvents.copy())
+		{
+			dispatchTo(songEvent, event);
+			if (!event.shouldPropagate)
+				return;
+		}
+		if (noteKindCount > 0)
 			callNoteKinds(event);
 	}
 
@@ -370,7 +415,7 @@ class FluxVSliceModules
 		if (target == null || event == null)
 			return;
 
-		var info:VSliceClassInfo = Std.isOfType(target, Module) ? moduleInfo.get(cast target) : (Std.isOfType(target, NoteKind) ? kindInfo.get(cast target) : null);
+		var info:VSliceClassInfo = infoOf(target);
 		var previousMod:String = currentMod;
 		if (info != null)
 			currentMod = info.mod;
@@ -389,6 +434,18 @@ class FluxVSliceModules
 			reportError(info != null ? '${info.name} (${info.file})' : VSliceAdapter.describe(target), errorText(e));
 		}
 		currentMod = previousMod;
+	}
+
+	/** De qué clase y archivo viene un objeto con script (para los errores y el mod). */
+	static function infoOf(target:Dynamic):VSliceClassInfo
+	{
+		if (Std.isOfType(target, Module))
+			return moduleInfo.get(cast target);
+		if (Std.isOfType(target, NoteKind))
+			return kindInfo.get(cast target);
+		if (Std.isOfType(target, SongEvent))
+			return eventInfo.get(cast target);
+		return null;
 	}
 
 	static function callMethod(target:Dynamic, name:String, event:ScriptEvent):Void
@@ -458,6 +515,7 @@ class FluxVSliceModules
 	{
 		reload();
 		VSliceAdapter.clear();
+		activeEvents = [];
 		if (hasModules())
 			callEvent(new StateChangeScriptEvent(ScriptEventType.STATE_CHANGE_BEGIN, state, true));
 	}
@@ -491,10 +549,25 @@ class FluxVSliceModules
 
 	public static function onSongLoaded(game:PlayState):Void
 	{
+		// los eventos con script que usa esta canción (como SongEventRegistry.resetEvents)
+		activeEvents = [];
+		var events:Array<VSSongEventData> = VSliceAdapter.getField(game, 'songEvents');
+		if (events != null)
+			for (event in events)
+			{
+				var handler:SongEvent = songEvents.get(event.eventKind);
+				if (handler != null && !activeEvents.contains(handler))
+					activeEvents.push(handler);
+			}
+
 		if (!hasModules())
 			return;
 		var id:String = PlayState.SONG != null ? Paths.formatToSongPath(PlayState.SONG.song) : '';
-		callEvent(new SongLoadScriptEvent(id, Paths.formatToSongPath(Difficulty.getString()), [], []));
+		var notes:Array<Dynamic> = [];
+		for (note in game.unspawnNotes)
+			if (note != null && !note.isSustainNote)
+				notes.push(new flux.vslice.modules.VSliceProxies.VSNoteData(note));
+		callEvent(new SongLoadScriptEvent(id, Paths.formatToSongPath(Difficulty.getString()), notes, events != null ? events.copy() : []));
 	}
 
 	/** Devuelve false si un módulo canceló la cuenta regresiva. */
@@ -576,21 +649,56 @@ class FluxVSliceModules
 		return !event.eventCanceled;
 	}
 
-	/** Devuelve false si un módulo canceló el evento (Psych no lo procesa, los scripts sí lo reciben). */
+	/**
+	 * Un evento del chart. Primero lo reciben los módulos (onSongEvent) y, si nadie
+	 * lo canceló, lo hace su script (`extends SongEvent`) si tiene uno.
+	 * Devuelve false si se canceló (Psych no lo procesa, los scripts sí lo reciben).
+	 */
 	public static function onSongEvent(game:PlayState, name:String, value1:String, value2:String, time:Float):Bool
 	{
-		if (!hasModules())
+		var handler:SongEvent = songEvents.get(name);
+		if (!hasModules() && handler == null)
 			return true;
-		var data:Dynamic = {
-			time: time,
-			eventKind: name,
-			value: eventValue(value1, value2),
-			value1: value1,
-			value2: value2
-		};
+		var data:VSSongEventData = new VSSongEventData(time, name, eventValue(value1, value2));
+		data.value1 = value1;
+		data.value2 = value2;
 		var event:SongEventScriptEvent = new SongEventScriptEvent(data);
-		callEvent(event);
-		return !event.eventCanceled;
+		if (hasModules())
+			callEvent(event);
+		if (event.eventCanceled)
+			return false;
+		#if FLUX_VSLICE
+		if (flux.vslice.FluxVSliceEvents.handles(name)) // ese lo hace Flux (ZoomCamera, Subtitles...)
+			return true;
+		#end
+		runEventHandler(name, data);
+		return true;
+	}
+
+	/** Si hay un evento con script con ese id. */
+	public static inline function hasEventHandler(kind:String):Bool
+		return kind != null && songEvents.exists(kind);
+
+	/** Llama al handleEvent del evento con script (si hay uno para ese id). */
+	public static function runEventHandler(kind:String, data:VSSongEventData):Void
+	{
+		var handler:SongEvent = kind != null ? songEvents.get(kind) : null;
+		if (handler == null)
+			return;
+		var info:VSliceClassInfo = eventInfo.get(handler);
+		var previousMod:String = currentMod;
+		if (info != null)
+			currentMod = info.mod;
+		try
+		{
+			handler.handleEvent(data);
+		}
+		catch (e:Dynamic)
+		{
+			reportError(info != null ? '${info.name} (${info.file})' : 'evento $kind', errorText(e));
+		}
+		currentMod = previousMod;
+		data.handled = true;
 	}
 
 	/** El valor de un evento convertido de V-Slice viene como JSON en value1. */
