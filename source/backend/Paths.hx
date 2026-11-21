@@ -314,6 +314,11 @@ class Paths
 
 			if (FileSystem.exists(mods(Mods.currentModDirectory + '/' + modKey)) || FileSystem.exists(mods(modKey)))
 				return true;
+
+			#if FLUX_VSLICE
+			if (flux.vslice.FluxVSliceAssets.find(modKey) != null) // Flux Engine: shared/ de los mods de V-Slice
+				return true;
+			#end
 		}
 		#end
 		return (OpenFlAssets.exists(getPath(key, type, parentFolder, false)));
@@ -486,6 +491,13 @@ class Paths
 			if(FileSystem.exists(fileToCheck))
 				return fileToCheck;
 		}
+
+		#if FLUX_VSLICE
+		// Flux Engine: mods de V-Slice con archivos en shared/ o en la carpeta del nivel
+		var vslicePath:String = flux.vslice.FluxVSliceAssets.find(key);
+		if(vslicePath != null)
+			return vslicePath;
+		#end
 		return 'mods/' + key;
 	}
 	#end

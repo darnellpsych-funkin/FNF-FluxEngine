@@ -138,6 +138,10 @@ class PlayState extends MusicBeatState
 	public var dadGroup:FlxSpriteGroup;
 	public var gfGroup:FlxSpriteGroup;
 	public static var curStage:String = '';
+	#if FLUX_VSLICE
+	/** Flux Engine: escenario de un mod de V-Slice (data/stages/<id>.json), si la canción usa uno */
+	public var vsliceStage:flux.vslice.FluxVSliceStage = null;
+	#end
 	public static var stageUI(default, set):String = "normal";
 	public static var uiPrefix:String = "";
 	public static var uiPostfix:String = "";
@@ -362,6 +366,10 @@ class PlayState extends MusicBeatState
 		curStage = SONG.stage;
 
 		var stageData:StageFile = StageData.getStageFile(curStage);
+		#if FLUX_VSLICE
+		vsliceStage = flux.vslice.FluxVSliceStage.load(curStage);
+		if (vsliceStage != null) stageData = vsliceStage.stageFile(SONG);
+		#end
 		defaultCamZoom = stageData.defaultZoom;
 
 		stageUI = "normal";
@@ -435,6 +443,12 @@ class PlayState extends MusicBeatState
 		startCharacterPos(boyfriend);
 		boyfriendGroup.add(boyfriend);
 		
+		#if FLUX_VSLICE
+		flux.vslice.FluxVSliceCharacters.setupDeath(boyfriend);
+		if (vsliceStage != null)
+			vsliceStage.build(this); // props + personajes ordenados por zIndex
+		else
+		#end
 		if(stageData.objects != null && stageData.objects.length > 0)
 		{
 			var list:Map<String, FlxSprite> = StageData.addObjectsToState(stageData.objects, !stageData.hide_girlfriend ? gfGroup : null, dadGroup, boyfriendGroup, this);
@@ -860,6 +874,13 @@ class PlayState extends MusicBeatState
 		return variables.get(tag);
 
 	function startCharacterPos(char:Character, ?gfCheck:Bool = false) {
+		#if FLUX_VSLICE
+		if (vsliceStage != null)
+		{
+			vsliceStage.placeCharacter(char, char.isPlayer ? 'bf' : (gfCheck ? 'dad' : 'gf'));
+			return;
+		}
+		#end
 		if(gfCheck && char.curCharacter.startsWith('gf')) { //IF DAD IS GIRLFRIEND, HE GOES TO HER POSITION
 			char.setPosition(GF_X, GF_Y);
 			char.scrollFactor.set(0.95, 0.95);
@@ -3238,6 +3259,14 @@ class PlayState extends MusicBeatState
 			resetSubState();
 		}
 
+		#if FLUX_VSLICE
+		if (vsliceStage != null)
+		{
+			vsliceStage.destroy();
+			vsliceStage = null;
+		}
+		#end
+
 		#if LUA_ALLOWED
 		for (lua in luaArray)
 		{
@@ -3305,6 +3334,7 @@ class PlayState extends MusicBeatState
 		}
 
 		lastStepHit = curStep;
+		#if FLUX_VSLICE if (vsliceStage != null) vsliceStage.stepHit(curStep); #end // los props de V-Slice bailan
 		setOnScripts('curStep', curStep);
 		callOnScripts('onStepHit');
 		#if FLUX_VSLICE_SCRIPTS FluxVSliceModules.onStepHit(this, curBeat, curStep); #end

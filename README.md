@@ -157,7 +157,7 @@ Experimental: para que las clases de un `.hxs` puedan heredar de clases de Flixe
 
 `callOnHScript` y `setOnHScript` de Psych también llegan a los scripts de Flux.
 
-## Mods de V-Slice (fase 1: canciones)
+## Mods de V-Slice (fases 1 y 2: canciones, personajes y escenarios)
 
 Pon la carpeta del mod de V-Slice dentro de `mods/` (la que tiene `_polymod_meta.json`). Flux lee:
 
@@ -167,7 +167,17 @@ Pon la carpeta del mod de V-Slice dentro de `mods/` (la que tiene `_polymod_meta
 - **Audio** con los nombres de V-Slice: `Inst.ogg`, `Inst-erect.ogg`, `Voices-bf.ogg`, `Voices-dad-erect.ogg`, `Voices-pico-pico.ogg`...
 - **Eventos**: `PlayAnimation`, `ScrollSpeed`, `ZoomCamera` y `SetCameraBop`. Los demás llegan a `onEvent` de los scripts con el valor en JSON.
 
-Todavía no (próximas fases): **personajes** y **escenarios** en formato V-Slice (si el mod no trae versiones de Psych, se usa BF y un escenario vacío) y skins de notas (`noteStyle`). Para desactivar todo esto, comenta `FLUX_VSLICE` en `Project.xml`.
+### Personajes y escenarios de V-Slice (fase 2)
+
+Si un personaje o un escenario no existe en Psych, Flux usa el de V-Slice:
+
+- **Personajes** (`data/characters/<id>.json`): `sparrow`, `multisparrow` y `packer`. Las animaciones, sus offsets (que en V-Slice crecen con la escala), `flipX`, `scale`, `singTime`, `danceEvery`, el ícono y los offsets de cámara funcionan como en V-Slice. `animateatlas` todavía no.
+- **Escenarios** (`data/stages/<id>.json`): los props con su posición, escala, scroll, alpha, ángulo, color, blend, `flipX`/`flipY` y animaciones. Los que tienen `danceEvery` bailan con la canción. Los personajes quedan parados en su lugar (el centro de abajo, como en V-Slice), con la escala, el scroll, el alpha y los offsets de cámara del escenario, y todo se ordena por `zIndex`. También el zoom (`cameraZoom`).
+- Los props con nombre se pueden usar desde Lua y HScript (`getProperty('bg.alpha')`), y desde los módulos con `getNamedProp`. El `refresh()` de los módulos ordena el escenario por `zIndex` sin mover el HUD.
+- **Game over**: si el jugador tiene `firstDeath`, `deathLoop` y `deathConfirm` (como en V-Slice), el game over usa al mismo personaje, en el mismo lugar y con el mismo tamaño.
+- Los archivos que el mod guarda en `shared/` (por ejemplo `shared/images/characters/...`) se encuentran solos.
+
+Todavía no (próximas fases): los scripts de canción, escenario, personajes, eventos y tipos de nota (`extends Song`, `Stage`, `SparrowCharacter`...), las skins de notas (`noteStyle`) y los props o personajes `animateatlas`. Para desactivar todo lo de V-Slice, comenta `FLUX_VSLICE` en `Project.xml`.
 
 ## Módulos de V-Slice (`.hxc`, fase 5)
 

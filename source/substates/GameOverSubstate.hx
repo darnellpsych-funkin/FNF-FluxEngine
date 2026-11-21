@@ -63,9 +63,17 @@ class GameOverSubstate extends MusicBeatSubstate
 
 		if(boyfriend == null)
 		{
-			boyfriend = new Character(PlayState.instance.boyfriend.getScreenPosition().x, PlayState.instance.boyfriend.getScreenPosition().y, characterName, true);
-			boyfriend.x += boyfriend.positionArray[0] - PlayState.instance.boyfriend.positionArray[0];
-			boyfriend.y += boyfriend.positionArray[1] - PlayState.instance.boyfriend.positionArray[1];
+			#if FLUX_VSLICE
+			// Flux Engine: en V-Slice el game over usa el mismo personaje, en el mismo lugar y tamaño
+			if (PlayState.instance.boyfriend.vsliceData != null && flux.vslice.FluxVSliceCharacters.isVSlice(characterName))
+				boyfriend = flux.vslice.FluxVSliceCharacters.makeDeathCharacter(characterName, PlayState.instance.boyfriend);
+			else
+			#end
+			{
+				boyfriend = new Character(PlayState.instance.boyfriend.getScreenPosition().x, PlayState.instance.boyfriend.getScreenPosition().y, characterName, true);
+				boyfriend.x += boyfriend.positionArray[0] - PlayState.instance.boyfriend.positionArray[0];
+				boyfriend.y += boyfriend.positionArray[1] - PlayState.instance.boyfriend.positionArray[1];
+			}
 		}
 		boyfriend.skipDance = true;
 		add(boyfriend);
