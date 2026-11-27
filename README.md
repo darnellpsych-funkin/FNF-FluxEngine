@@ -1,6 +1,6 @@
 # Flux Engine
 
-Fork de **Psych Engine 1.0.4** con más lenguajes de scripting, compatibilidad con mods de **V-Slice** y **Codename Engine**, **multi-keys** (4 a 17 teclas), **modcharts** (FunkinModchart) y charts de **osu!mania, StepMania, Quaver y Codename** (Moonchart).
+Fork de **Psych Engine 1.0.4** con más lenguajes de scripting, compatibilidad con mods de **V-Slice**, **Codename Engine** y **Dave Engine**, **multi-keys** (4 a 17 teclas), **modcharts** (FunkinModchart) y charts de **osu!mania, StepMania, Quaver y Codename** (Moonchart).
 
 ## Scripting de Flux Engine
 
@@ -305,6 +305,17 @@ Flux carga mods hechos para [Codename Engine](https://github.com/CodenameCrew/Co
 - Los scripts `.hx` de Codename (de canción, escenario, personaje y globales) todavía no se cargan: es la fase 2. Tampoco los personajes del menú del Story Mode en XML (se usan los de Psych con el mismo nombre o BF y GF).
 
 Para desactivarlo, comenta `FLUX_CODENAME` en `Project.xml`.
+
+## Mods de Dave Engine (VS Dave and Bambi Volume 1)
+
+Flux carga las canciones de mods hechos para [Dave Engine](https://github.com/T5mpler/VsDnB-Volume1) (Polymod): copia la carpeta del mod a `mods/`.
+
+- **Canciones**: `data/songs/<id>/<id>-metadata.json` y `<id>-chart.json`, con el audio en `songs/<id>/Inst.ogg` y `Voices.ogg`. Las notas de dirección 4-7 van del otro lado, como en Dave Engine, y los cambios de BPM (`timeChanges`) también pasan.
+- **Variaciones**: cada `<id>-chart-<variación>.json` es una dificultad más (la normal es el chart por defecto).
+- **Freeplay**: cada mod tiene su semana "<mod> (Dave Engine)" con sus canciones, y el ícono y el color del oponente.
+- Los personajes y escenarios de Dave Engine son scripts (`scripts/characters/*.hxc`, `scripts/stages/*.hxc`): vienen en la próxima fase. Mientras tanto se usan los de Psych, V-Slice o Codename con el mismo nombre.
+
+Para desactivarlo, comenta `FLUX_DAVE` en `Project.xml`.
 
 ## Multi-Keys (de 4 a 17 teclas)
 

@@ -163,6 +163,14 @@ class Song
 				if(vsliceSong != null) return vsliceSong;
 			}
 			#end
+			#if FLUX_DAVE
+			// Flux Engine: o el de Dave Engine (data/songs/<id>/<id>-chart.json con secciones)
+			if(!Assets.exists(_lastPath))
+			{
+				var daveSong:SwagSong = flux.dave.FluxDave.getChart(jsonInput, folder);
+				if(daveSong != null) return daveSong;
+			}
+			#end
 			#if MOONCHART_ALLOWED
 			// Flux Engine: charts de osu!mania, StepMania, Quaver y Codename (Moonchart)
 			if(!Assets.exists(_lastPath))
