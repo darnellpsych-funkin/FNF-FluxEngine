@@ -28,14 +28,14 @@ class StrumNote extends FlxSprite
 	public function new(x:Float, y:Float, leData:Int, player:Int) {
 		animation = new PsychAnimationController(this);
 
-		rgbShader = new RGBShaderReference(this, Note.initializeGlobalRGBShader(leData));
+		rgbShader = new RGBShaderReference(this, Note.initializeGlobalRGBShader(flux.keys.FluxKeys.colorSlot(leData)));
 		rgbShader.enabled = false;
 		if(PlayState.SONG != null && PlayState.SONG.disableNoteRGB) useRGBShader = false;
 		
-		var arr:Array<FlxColor> = ClientPrefs.data.arrowRGB[leData];
-		if(PlayState.isPixelStage) arr = ClientPrefs.data.arrowRGBPixel[leData];
+		// Flux Engine: multi-keys, el color sale del carril (en 4K es ClientPrefs.data.arrowRGB[leData], como siempre)
+		var arr:Array<FlxColor> = flux.keys.FluxKeys.laneColors(leData, PlayState.isPixelStage);
 		
-		if(leData <= arr.length)
+		if(arr != null)
 		{
 			@:bypassAccessor
 			{
@@ -57,6 +57,7 @@ class StrumNote extends FlxSprite
 
 		var customSkin:String = skin + Note.getNoteSkinPostfix();
 		if(Paths.fileExists('images/$customSkin.png', IMAGE)) skin = customSkin;
+		skin = flux.keys.FluxKeys.laneSkin(skin, leData); // Flux Engine: multi-keys (círculo en el carril del centro)
 
 		texture = skin; //Load texture and anims
 		scrollFactor.set();
@@ -76,14 +77,18 @@ class StrumNote extends FlxSprite
 			loadGraphic(Paths.image('pixelUI/' + texture), true, Math.floor(width), Math.floor(height));
 
 			antialiasing = false;
-			setGraphicSize(Std.int(width * PlayState.daPixelZoom));
+			setGraphicSize(Std.int(width * PlayState.daPixelZoom * flux.keys.FluxKeys.noteScale));
 
 			animation.add('green', [6]);
 			animation.add('red', [7]);
 			animation.add('blue', [5]);
 			animation.add('purple', [4]);
-			switch (Math.abs(noteData) % 4)
+			switch (flux.keys.FluxKeys.strumDir(noteData, this)) // Flux Engine: multi-keys (en 4K es noteData % 4)
 			{
+				case 4: // círculo del carril del centro (multi-keys)
+					animation.add('static', [0]);
+					animation.add('pressed', [4, 8], 12, false);
+					animation.add('confirm', [12, 16], 24, false);
 				case 0:
 					animation.add('static', [0]);
 					animation.add('pressed', [4, 8], 12, false);
@@ -111,10 +116,14 @@ class StrumNote extends FlxSprite
 			animation.addByPrefix('red', 'arrowRIGHT');
 
 			antialiasing = ClientPrefs.data.antialiasing;
-			setGraphicSize(Std.int(width * 0.7));
+			setGraphicSize(Std.int(width * 0.7 * flux.keys.FluxKeys.noteScale));
 
-			switch (Math.abs(noteData) % 4)
+			switch (flux.keys.FluxKeys.strumDir(noteData, this)) // Flux Engine: multi-keys (en 4K es noteData % 4)
 			{
+				case 4: // círculo del carril del centro (multi-keys)
+					animation.addByPrefix('static', 'arrowCIRCLE');
+					animation.addByPrefix('pressed', 'circle press', 24, false);
+					animation.addByPrefix('confirm', 'circle confirm', 24, false);
 				case 0:
 					animation.addByPrefix('static', 'arrowLEFT');
 					animation.addByPrefix('pressed', 'left press', 24, false);

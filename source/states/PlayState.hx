@@ -311,12 +311,9 @@ class PlayState extends MusicBeatState
 		PauseSubState.songName = null; //Reset to default
 		playbackRate = ClientPrefs.getGameplaySetting('songspeed');
 
-		keysArray = [
-			'note_left',
-			'note_down',
-			'note_up',
-			'note_right'
-		];
+		// Flux Engine: multi-keys (4 a 17 teclas). En 4K son note_left, note_down, note_up y note_right, como siempre
+		keysArray = flux.keys.FluxKeys.setupSong(SONG);
+		singAnimations = flux.keys.FluxKeys.singAnimations();
 
 		if(FlxG.sound.music != null)
 			FlxG.sound.music.stop();
@@ -1414,7 +1411,9 @@ class PlayState extends MusicBeatState
 		catch(e:Dynamic) {}
 
 		var oldNote:Note = null;
-		var sectionsData:Array<SwagSection> = PlayState.SONG.notes;
+		// Flux Engine: multi-keys, si se juega con otra cantidad de teclas se usa una copia convertida del chart
+		totalColumns = flux.keys.FluxKeys.current;
+		var sectionsData:Array<SwagSection> = flux.keys.FluxKeys.prepareSections(PlayState.SONG);
 		var ghostNotesCaught:Int = 0;
 		var daBpm:Float = Conductor.bpm;
 	
@@ -1609,7 +1608,7 @@ class PlayState extends MusicBeatState
 	{
 		var strumLineX:Float = ClientPrefs.data.middleScroll ? STRUM_X_MIDDLESCROLL : STRUM_X;
 		var strumLineY:Float = ClientPrefs.data.downScroll ? (FlxG.height - 150) : 50;
-		for (i in 0...4)
+		for (i in 0...flux.keys.FluxKeys.current) // Flux Engine: multi-keys
 		{
 			// FlxG.log.add(i);
 			var targetAlpha:Float = 1;
@@ -1625,7 +1624,7 @@ class PlayState extends MusicBeatState
 			{
 				//babyArrow.y -= 10;
 				babyArrow.alpha = 0;
-				FlxTween.tween(babyArrow, {/*y: babyArrow.y + 10,*/ alpha: targetAlpha}, 1, {ease: FlxEase.circOut, startDelay: 0.5 + (0.2 * i)});
+				FlxTween.tween(babyArrow, {/*y: babyArrow.y + 10,*/ alpha: targetAlpha}, 1, {ease: FlxEase.circOut, startDelay: 0.5 + flux.keys.FluxKeys.introDelay(i)});
 			}
 			else babyArrow.alpha = targetAlpha;
 
@@ -1645,6 +1644,7 @@ class PlayState extends MusicBeatState
 
 			strumLineNotes.add(babyArrow);
 			babyArrow.playerPosition();
+			flux.keys.FluxKeys.placeStrum(babyArrow, i, player); // Flux Engine: multi-keys (en 4K no hace nada)
 		}
 	}
 
@@ -1846,7 +1846,7 @@ class PlayState extends MusicBeatState
 		FlxG.watch.addQuick("stepShit", curStep);
 
 		// RESET = Quick Game Over Screen
-		if (!ClientPrefs.data.noReset && controls.RESET && canReset && !inCutscene && startedCountdown && !endingSong)
+		if (!ClientPrefs.data.noReset && controls.RESET && canReset && !inCutscene && startedCountdown && !endingSong && !flux.keys.FluxKeys.blocksReset)
 		{
 			health = 0;
 			trace("RESET = True");
@@ -3317,6 +3317,7 @@ class PlayState extends MusicBeatState
 		FlxG.animationTimeScale = 1;
 
 		Note.globalRgbShaders = [];
+		flux.keys.FluxKeys.reset(); // Flux Engine: multi-keys, los menús vuelven a 4K
 		backend.NoteTypesConfig.clearNoteTypesData();
 
 		NoteSplash.configs.clear();

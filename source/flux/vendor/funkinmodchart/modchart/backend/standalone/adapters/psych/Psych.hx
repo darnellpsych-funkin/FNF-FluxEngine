@@ -106,7 +106,7 @@ class Psych implements IAdapter {
 	}
 
 	public function getKeyCount(?player:Int = 0):Int {
-		return 4;
+		return flux.keys.FluxKeys.current; // Flux Engine: multi-keys
 	}
 
 	public function getPlayerCount():Int {
@@ -156,7 +156,7 @@ class Psych implements IAdapter {
 	}
 
 	public function getDefaultReceptorY(lane:Int, player:Int):Float {
-		return getDownscroll() ? FlxG.height - getStrumFromInfo(lane, player).y - Note.swagWidth : getStrumFromInfo(lane, player).y;
+		return getDownscroll() ? FlxG.height - getStrumFromInfo(lane, player).y - Note.swagWidth * flux.keys.FluxKeys.noteScale : getStrumFromInfo(lane, player).y;
 	}
 
 	public function getArrowCamera():Array<FlxCamera>

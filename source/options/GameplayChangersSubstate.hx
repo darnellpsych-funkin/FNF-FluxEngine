@@ -66,6 +66,9 @@ class GameplayChangersSubstate extends MusicBeatSubstate
 		option.displayFormat = '%vX';
 		optionsArray.push(option);
 
+		// Flux Engine: multi-keys, convierte cualquier canción a 4-17 teclas ("Chart" = las del chart)
+		optionsArray.push(new GameplayOption('Multi-Keys', 'keycount', STRING, 'Chart', flux.keys.FluxKeysData.settingValues()));
+
 		optionsArray.push(new GameplayOption('Instakill on Miss', 'instakill', BOOL, false));
 		optionsArray.push(new GameplayOption('Practice Mode', 'practice', BOOL, false));
 		optionsArray.push(new GameplayOption('Botplay', 'botplay', BOOL, false));
