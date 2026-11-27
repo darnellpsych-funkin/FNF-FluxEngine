@@ -17,9 +17,11 @@ using StringTools;
  *   .hxs         -> hscript-improved de Codename, con preset expandido (define HSCRIPT_IMPROVED_ALLOWED)
  *   .luau        -> Luau, el Lua de Roblox, con el mismo preset que los .hxs (define LUAU_ALLOWED)
  *   .ss          -> SScript 24, con el mismo preset que los .hxs (define SSCRIPT_ALLOWED)
+ *   .flux        -> FluxScript, el addon de HScript de Flux, con el preset de los .hxs y
+ *                   la API de Lua de Psych (define FLUXSCRIPT_ALLOWED)
  *
  * Versiones globales: la misma extensión con una "g" al final (.hxsg, .luaug, .ssg,
- * .rhxg, .nxg, .nxsg, .hspg) y .luag para Lua. Corren siempre, en todos los menús
+ * .fluxg, .rhxg, .nxg, .nxsg, .hspg) y .luag para Lua. Corren siempre, en todos los menús
  * y canciones (ver FluxStateScripts y FluxLuaGlobal).
  */
 class FluxScriptHandler
@@ -30,6 +32,7 @@ class FluxScriptHandler
 	public static var HXS_EXTENSIONS(default, null):Array<String> = ['.hxs'];
 	public static var LUAU_EXTENSIONS(default, null):Array<String> = ['.luau'];
 	public static var SS_EXTENSIONS(default, null):Array<String> = ['.ss'];
+	public static var FLUX_EXTENSIONS(default, null):Array<String> = ['.flux'];
 	/** Lua global (FluxLuaGlobal) */
 	public static var LUA_GLOBAL_EXTENSION(default, null):String = '.luag';
 
@@ -45,6 +48,7 @@ class FluxScriptHandler
 		#if HSCRIPT_IMPROVED_ALLOWED exts = exts.concat(HXS_EXTENSIONS); #end
 		#if LUAU_ALLOWED exts = exts.concat(LUAU_EXTENSIONS); #end
 		#if SSCRIPT_ALLOWED exts = exts.concat(SS_EXTENSIONS); #end
+		#if FLUXSCRIPT_ALLOWED exts = exts.concat(FLUX_EXTENSIONS); #end
 		return exts;
 	}
 
@@ -199,6 +203,11 @@ class FluxScriptHandler
 			for (ext in SS_EXTENSIONS)
 				if (lower.endsWith(ext)) script = new FluxSScript(origin, code, FlxG.state);
 		#end
+		#if FLUXSCRIPT_ALLOWED
+		if (script == null)
+			for (ext in FLUX_EXTENSIONS)
+				if (lower.endsWith(ext)) script = new FluxScriptLang(origin, code, FlxG.state);
+		#end
 
 		if (script == null) return null;
 
@@ -212,6 +221,15 @@ class FluxScriptHandler
 		#end
 		#if SSCRIPT_ALLOWED
 		if (script is FluxSScript) FluxHxsPreset.apply(script);
+		#end
+		#if FLUXSCRIPT_ALLOWED
+		if (script is FluxScriptLang)
+		{
+			FluxHxsPreset.apply(script);
+			var runtime:fluxscript.FluxScript = (cast script : FluxScriptLang).runtime;
+			runtime.modFolder = modFolder;
+			fluxscript.psych.FluxPsych.apply(runtime); // la API de Lua de Psych (makeLuaSprite, doTweenX...)
+		}
 		#end
 		if (extraVars != null)
 			for (name => value in extraVars)
