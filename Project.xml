@@ -33,7 +33,8 @@
 	<!-- <define name="HXS_FLIXEL_CLASSES" if="HSCRIPT_IMPROVED_ALLOWED" /> -->
 	<define name="LUAU_ALLOWED" if="desktop" /> <!-- .luau: Luau, el Lua de Roblox, compilado dentro del juego (source/flux/vendor/luau) -->
 	<define name="SSCRIPT_ALLOWED" if="desktop" /> <!-- .ss: SScript 24 (incluido en source/flux/vendor/sscript) -->
-	<define name="FLUX_SCRIPTS_ALLOWED" if="NXSCRIPT_ALLOWED || RULESCRIPT_ALLOWED || HSCRIPT_PLUS_ALLOWED || HSCRIPT_IMPROVED_ALLOWED || LUAU_ALLOWED || SSCRIPT_ALLOWED" />
+	<define name="FLUXSCRIPT_ALLOWED" if="HSCRIPT_ALLOWED" /> <!-- .flux: FluxScript, el addon de HScript de Flux (source/flux/vendor/fluxscript) -->
+	<define name="FLUX_SCRIPTS_ALLOWED" if="NXSCRIPT_ALLOWED || RULESCRIPT_ALLOWED || HSCRIPT_PLUS_ALLOWED || HSCRIPT_IMPROVED_ALLOWED || LUAU_ALLOWED || SSCRIPT_ALLOWED || FLUXSCRIPT_ALLOWED" />
 	<define name="LUA_GLOBAL_ALLOWED" if="LUA_ALLOWED FLUX_SCRIPTS_ALLOWED" /> <!-- .luag: Lua que corre en todos los menús y canciones -->
 	<define name="FLUX_VSLICE" if="MODS_ALLOWED" /> <!-- cargar mods de V-Slice (fase 1: canciones, charts, audio y semanas) -->
 	<define name="FLUX_VSLICE_SCRIPTS" if="FLUX_VSLICE RULESCRIPT_ALLOWED" /> <!-- módulos .hxc de V-Slice (fase 5, usa RuleScript) -->
@@ -79,6 +80,7 @@
 
 	<classpath name="source" />
 	<classpath name="source/flux/vendor/sscript/src" if="SSCRIPT_ALLOWED" /> <!-- SScript (paquetes hscript.SScript, hscriptBase y tea) -->
+	<classpath name="source/flux/vendor/fluxscript/src" if="FLUXSCRIPT_ALLOWED" /> <!-- FluxScript (paquete fluxscript), de github.com/darnellpsych-funkin/FluxScript -->
 	<classpath name="source/flux/vendor/moonchart/src" if="MOONCHART_ALLOWED" /> <!-- Moonchart (paquete moonchart) -->
 
 	<!-- FunkinModchart (paquete modchart): lo mismo que hace su haxelib (include.xml y extraParams.hxml) -->

@@ -17,9 +17,10 @@ using StringTools;
  *   runHScriptImproved(codigo, ?funcion, ?argumentos)
  *   runLuau(codigo, ?funcion, ?argumentos)
  *   runSScript(codigo, ?funcion, ?argumentos)
- *   runFluxFunction(lenguaje, funcion, ?argumentos)   -- lenguaje: "rulescript", "nxscript", "hscriptplus", "hxs", "luau" o "sscript"
+ *   runFluxScript(codigo, ?funcion, ?argumentos)
+ *   runFluxFunction(lenguaje, funcion, ?argumentos)   -- lenguaje: "rulescript", "nxscript", "hscriptplus", "hxs", "luau", "sscript" o "fluxscript"
  *
- * Scripts de archivo (.rhx, .nx, .nxs, .hsp, .hxs, .luau, .ss):
+ * Scripts de archivo (.rhx, .nx, .nxs, .hsp, .hxs, .luau, .ss, .flux):
  *   addFluxScript(archivo, ?ignorarSiYaCorre)
  *   removeFluxScript(archivo)
  *   isFluxScriptRunning(archivo)
@@ -75,6 +76,11 @@ class FluxLuaFunctions
 		#if SSCRIPT_ALLOWED
 		funk.addLocalCallback("runSScript", function(code:String, ?funcToRun:String = null, ?funcArgs:Array<Dynamic> = null) {
 			return runCode(funk, '.ss', code, funcToRun, funcArgs);
+		});
+		#end
+		#if FLUXSCRIPT_ALLOWED
+		funk.addLocalCallback("runFluxScript", function(code:String, ?funcToRun:String = null, ?funcArgs:Array<Dynamic> = null) {
+			return runCode(funk, '.flux', code, funcToRun, funcArgs);
 		});
 		#end
 		funk.addLocalCallback("runFluxFunction", function(language:String, funcToRun:String, ?funcArgs:Array<Dynamic> = null) {
@@ -200,6 +206,7 @@ class FluxLuaFunctions
 			case 'hscriptimproved' | 'hsimproved' | 'improved' | 'hxs': '.hxs';
 			case 'luau' | 'roblox': '.luau';
 			case 'sscript' | 'ss' | 'superlativescript': '.ss';
+			case 'fluxscript' | 'flux': '.flux';
 			default: null;
 		}
 	}
@@ -214,6 +221,7 @@ class FluxLuaFunctions
 			case '.hxs': 'HScriptImproved';
 			case '.luau': 'Luau';
 			case '.ss': 'SScript';
+			case '.flux': 'FluxScript';
 			default: '?';
 		}
 	}

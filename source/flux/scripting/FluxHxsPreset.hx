@@ -366,6 +366,7 @@ class FluxHxsPreset
 			{
 				case 'Luau': '.luau';
 				case 'SScript': '.ss';
+				case 'FluxScript': '.flux';
 				default: '.hxs';
 			};
 			var file:String = findFile(path);
