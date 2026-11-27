@@ -146,6 +146,10 @@ class PlayState extends MusicBeatState
 	/** Flux Engine: escenario de un mod de Codename (data/stages/<id>.xml), si la canción usa uno */
 	public var codenameStage:flux.codename.CodenameStage = null;
 	#end
+	#if FLUX_DAVE_SCRIPTS
+	/** Flux Engine: escenario de Dave Engine (data/stages/<id>.json + su .hxc), o el que manda los eventos a sus personajes */
+	public var daveStage:flux.dave.FluxDaveStage = null;
+	#end
 	public static var stageUI(default, set):String = "normal";
 	public static var uiPrefix:String = "";
 	public static var uiPostfix:String = "";
@@ -378,6 +382,15 @@ class PlayState extends MusicBeatState
 			if (codenameStage != null) stageData = codenameStage.stageFile;
 		}
 		#end
+		#if FLUX_DAVE_SCRIPTS
+		// en las canciones de Dave Engine sus personajes y escenarios van antes que los del juego base (bf, gf, stage...)
+		flux.dave.DaveCharacters.preferDave = flux.dave.FluxDave.isDaveSong(SONG);
+		if (#if FLUX_VSLICE vsliceStage == null && #end #if FLUX_CODENAME codenameStage == null && #end true)
+		{
+			daveStage = flux.dave.FluxDaveStage.load(curStage); // escenario de Dave Engine (data/stages/<id>.json + scripts/stages/<id>.hxc)
+			if (daveStage != null) stageData = daveStage.stageFile;
+		}
+		#end
 		defaultCamZoom = stageData.defaultZoom;
 
 		stageUI = "normal";
@@ -412,6 +425,7 @@ class PlayState extends MusicBeatState
 		dadGroup = new FlxSpriteGroup(DAD_X, DAD_Y);
 		gfGroup = new FlxSpriteGroup(GF_X, GF_Y);
 
+		#if FLUX_DAVE_SCRIPTS if (daveStage == null) #end // Flux Engine: los props del escenario de Dave ya están
 		switch (curStage)
 		{
 			case 'stage': new StageWeek1(); 			//Week 1
@@ -451,10 +465,19 @@ class PlayState extends MusicBeatState
 		startCharacterPos(boyfriend);
 		boyfriendGroup.add(boyfriend);
 		
+		#if FLUX_DAVE_SCRIPTS
+		flux.dave.DaveCharacters.setupDeath(boyfriend); // el deathSkin del jugador de Dave Engine
+		flux.dave.DaveCharacters.fixGirlfriend(this); // la GF de Dave: la del escenario (gfOverride) o el gfSkin del jugador
+		#end
 		#if FLUX_VSLICE
 		flux.vslice.FluxVSliceCharacters.setupDeath(boyfriend);
 		if (vsliceStage != null)
 			vsliceStage.build(this); // props + personajes ordenados por zIndex
+		else
+		#end
+		#if FLUX_DAVE_SCRIPTS
+		if (daveStage != null)
+			daveStage.build(this); // props + personajes de Dave Engine ordenados por zIndex
 		else
 		#end
 		#if FLUX_CODENAME
@@ -478,6 +501,9 @@ class PlayState extends MusicBeatState
 			add(dadGroup);
 			add(boyfriendGroup);
 		}
+		#if FLUX_DAVE_SCRIPTS
+		if (daveStage == null) daveStage = flux.dave.FluxDaveStage.forCharacters(this); // eventos para los personajes de Dave Engine
+		#end
 		
 		#if (LUA_ALLOWED || HSCRIPT_ALLOWED || FLUX_SCRIPTS_ALLOWED)
 		// "SCRIPTS FOLDER" SCRIPTS
@@ -894,6 +920,9 @@ class PlayState extends MusicBeatState
 		return variables.get(tag);
 
 	function startCharacterPos(char:Character, ?gfCheck:Bool = false) {
+		#if FLUX_DAVE_SCRIPTS
+		if (daveStage != null) daveStage.placeCharacter(char, char.isPlayer ? 'bf' : (gfCheck ? 'dad' : 'gf')); // onCharacterAdd del escenario de Dave
+		#end
 		#if FLUX_VSLICE
 		if (vsliceStage != null)
 		{
@@ -3289,6 +3318,9 @@ class PlayState extends MusicBeatState
 			vsliceStage.destroy();
 			vsliceStage = null;
 		}
+		#end
+		#if FLUX_DAVE_SCRIPTS
+		flux.dave.DaveCharacters.preferDave = false;
 		#end
 
 		#if LUA_ALLOWED

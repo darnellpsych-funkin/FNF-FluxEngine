@@ -159,6 +159,7 @@ class VSliceTypes
 		add(['funkin.graphics.FunkinSprite'], VSFunkinSprite);
 		add(['funkin.FunkinMemory'], VSFunkinMemory);
 		add(['funkin.util.FlxTweenUtil'], VSFlxTweenUtil);
+		add(['flixel.util.FlxColor'], VSFlxColor); // un abstract: el script no lo puede usar directo
 		// tipos de datos que solo se usan en anotaciones (así no avisa que faltan)
 		add([
 			'funkin.data.stage.StageData',

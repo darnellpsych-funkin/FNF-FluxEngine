@@ -6,6 +6,7 @@ import backend.Difficulty;
 import backend.Paths;
 import flixel.FlxBasic;
 import flixel.FlxG;
+import flixel.animation.FlxAnimationController;
 import flixel.group.FlxGroup.FlxTypedGroup;
 import flux.vslice.api.VSliceApi;
 import flux.vslice.modules.VSliceProxies;
@@ -63,6 +64,10 @@ class VSliceAdapter
 			case 'refresh':
 				if (Std.isOfType(o, FlxTypedGroup) && Reflect.getProperty(o, 'refresh') == null)
 					return function() sortByZIndex(o);
+			case 'onFinish' | 'onFrameChange' | 'onLoop':
+				// animation.onFinish.add(...) de Flixel 5.9+ (Flux usa 5.6, que tiene finishCallback)
+				if (Std.isOfType(o, FlxAnimationController) && Reflect.field(o, f) == null)
+					return animationSignal(cast o, f);
 			default:
 		}
 
@@ -240,8 +245,21 @@ class VSliceAdapter
 				checkGame(game);
 				return opponentStrumline;
 			case 'currentStage':
+				#if FLUX_DAVE_SCRIPTS
+				// en un escenario de Dave Engine: su Stage (add, getProp...)
+				if (flux.dave.FluxDaveStage.current != null && flux.dave.FluxDaveStage.current.script != null)
+					return flux.dave.FluxDaveStage.current.script;
+				#end
 				checkGame(game);
 				return stage;
+			#if FLUX_DAVE_SCRIPTS
+			case 'gfOverride':
+				return flux.dave.FluxDaveStage.gfOverride;
+			case 'elapsedTime':
+				return flux.dave.FluxDaveStage.elapsedTime;
+			case 'healthBarOverride':
+				return null;
+			#end
 			case 'currentChart':
 				checkGame(game);
 				if (chart == null)
@@ -335,6 +353,14 @@ class VSliceAdapter
 				return true;
 			case 'isMinimalMode' | 'needsReset' | 'disableKeys' | 'isInCountdown':
 				return true;
+			#if FLUX_DAVE_SCRIPTS
+			case 'gfOverride':
+				// Dave Engine: la GF que pide el escenario (se cambia después de crear al jugador)
+				flux.dave.FluxDaveStage.gfOverride = value != null ? Std.string(value) : null;
+				return true;
+			case 'healthBarOverride':
+				return true;
+			#end
 			case 'currentStage':
 				// para cambiar de escenario: PlayState.instance.currentStage = StageRegistry.instance.fetchEntry(id)
 				checkGame(game);
@@ -417,6 +443,14 @@ class VSliceAdapter
 
 	static function characterGet(character:Character, f:String):Dynamic
 	{
+		#if FLUX_DAVE_SCRIPTS
+		if (character.daveScript != null) // personaje de Dave Engine: skins, danceTypes, isDanceAnimation()...
+		{
+			var value:Dynamic = flux.dave.DaveCharacters.getField(character, f, UNHANDLED);
+			if (value != UNHANDLED)
+				return value;
+		}
+		#end
 		switch (f)
 		{
 			case 'characterId' | 'characterName':
@@ -532,6 +566,10 @@ class VSliceAdapter
 
 	static function characterSet(character:Character, f:String, value:Dynamic):Bool
 	{
+		#if FLUX_DAVE_SCRIPTS
+		if (character.daveScript != null && flux.dave.DaveCharacters.setField(character, f, value))
+			return true;
+		#end
 		switch (f)
 		{
 			case 'singTimeSteps':
@@ -609,9 +647,57 @@ class VSliceAdapter
 		});
 	}
 
+	// ----- animation.onFinish / onFrameChange -----
+
+	static var animationSignals:ObjectMap<FlxAnimationController, Map<String, VSAnimationSignal>> = new ObjectMap<FlxAnimationController,
+		Map<String, VSAnimationSignal>>();
+
+	/** Una señal como las de Flixel 5.9+ que usa finishCallback / callback de Flixel 5.6. */
+	static function animationSignal(controller:FlxAnimationController, kind:String):VSAnimationSignal
+	{
+		var signals:Map<String, VSAnimationSignal> = animationSignals.get(controller);
+		if (signals == null)
+		{
+			signals = new Map<String, VSAnimationSignal>();
+			animationSignals.set(controller, signals);
+		}
+		var signal:VSAnimationSignal = signals.get(kind);
+		if (signal != null)
+			return signal;
+		signal = new VSAnimationSignal();
+		signals.set(kind, signal);
+		switch (kind)
+		{
+			case 'onFinish':
+				var previous:String->Void = controller.finishCallback;
+				controller.finishCallback = function(name:String) {
+					if (previous != null)
+						previous(name);
+					signal.dispatch([name]);
+				};
+			case 'onFrameChange':
+				var previous:(String, Int, Int) -> Void = controller.callback;
+				controller.callback = function(name:String, frameNumber:Int, frameIndex:Int) {
+					if (previous != null)
+						previous(name, frameNumber, frameIndex);
+					signal.dispatch([name, frameNumber, frameIndex]);
+				};
+			default: // onLoop: Flixel 5.6 no avisa cuando una animación vuelve a empezar
+		}
+		return signal;
+	}
+
+	/** Borra las señales de un sprite (al cambiar de personaje). */
+	public static function clearAnimationSignals(controller:FlxAnimationController):Void
+	{
+		if (controller != null)
+			animationSignals.remove(controller);
+	}
+
 	/** Se llama al cambiar de estado para no guardar objetos viejos. */
 	public static function clear():Void
 	{
+		animationSignals = new ObjectMap<FlxAnimationController, Map<String, VSAnimationSignal>>();
 		zIndexes = new ObjectMap<FlxBasic, Int>();
 		characterExtras = new ObjectMap<Character, Dynamic>();
 		cachedGame = null;
@@ -641,5 +727,53 @@ class VSliceAdapter
 private class VSliceUnhandled
 {
 	public function new() {}
+}
+
+/** animation.onFinish / onFrameChange de Flixel 5.9+ para los scripts: add, addOnce, remove, removeAll. */
+@:keep
+class VSAnimationSignal
+{
+	var listeners:Array<Dynamic> = [];
+	var once:Array<Dynamic> = [];
+
+	public function new() {}
+
+	public function add(listener:Dynamic):Void
+	{
+		if (listener != null && !listeners.contains(listener))
+			listeners.push(listener);
+	}
+
+	public function addOnce(listener:Dynamic):Void
+	{
+		add(listener);
+		if (listener != null && !once.contains(listener))
+			once.push(listener);
+	}
+
+	public function remove(listener:Dynamic):Void
+	{
+		listeners.remove(listener);
+		once.remove(listener);
+	}
+
+	public function removeAll():Void
+	{
+		listeners = [];
+		once = [];
+	}
+
+	public function has(listener:Dynamic):Bool
+		return listeners.contains(listener);
+
+	public function dispatch(args:Array<Dynamic>):Void
+	{
+		for (listener in listeners.copy())
+		{
+			if (once.remove(listener))
+				listeners.remove(listener);
+			Reflect.callMethod(null, listener, args);
+		}
+	}
 }
 #end

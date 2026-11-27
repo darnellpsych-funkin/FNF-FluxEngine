@@ -32,6 +32,9 @@ typedef VSliceClassInfo =
 	var superName:String;
 	var mod:String;
 	var file:String;
+
+	/** El primer texto del `super(...)` del constructor (Dave Engine: el id del personaje o escenario). */
+	var ?superId:String;
 }
 
 /**
@@ -53,7 +56,9 @@ typedef VSliceClassInfo =
  * los eventos de las notas de su tipo y los demás eventos de la canción.
  * Y los eventos del chart con script (`extends SongEvent` / `ScriptedSongEvent`):
  * Flux llama a su handleEvent(data) cuando la canción llega a un evento con su id.
- * Las clases de canciones, escenarios y personajes (Song, Stage, Character...)
+ * Las clases de Dave Engine (`extends Character` / `extends Stage`) se guardan
+ * para los personajes y escenarios de Dave (flux.dave.DaveScripts).
+ * Las clases de canciones, escenarios y personajes de V-Slice (Song, SparrowCharacter...)
  * todavía se ignoran con un aviso.
  */
 class FluxVSliceModules
@@ -142,6 +147,7 @@ class FluxVSliceModules
 		var loaded:Array<String> = [];
 		var loadedKinds:Array<String> = [];
 		var loadedEvents:Array<String> = [];
+		var loadedDave:Array<String> = [];
 		var ignored:Array<String> = [];
 		for (name in classOrder)
 		{
@@ -184,6 +190,14 @@ class FluxVSliceModules
 				loadedKinds.push('${kind.noteKind} (${info.name}) [${info.mod}]');
 				continue;
 			}
+			#if FLUX_DAVE_SCRIPTS
+			// personajes y escenarios de Dave Engine: se crean cuando la canción los usa
+			if (flux.dave.DaveScripts.register(info.name, info.superName, info.superId, info.file))
+			{
+				loadedDave.push('${info.superId != null ? info.superId : info.name} (${info.name}) [${info.mod}]');
+				continue;
+			}
+			#end
 			if (info.superName != 'Module' && info.superName != 'ScriptedModule')
 			{
 				ignored.push('${info.name} (extends ${info.superName})');
@@ -213,8 +227,10 @@ class FluxVSliceModules
 			log('Tipos de nota de V-Slice cargados: ' + loadedKinds.join(', '));
 		if (loadedEvents.length > 0)
 			log('Eventos de V-Slice cargados: ' + loadedEvents.join(', '));
+		if (loadedDave.length > 0)
+			log('Personajes y escenarios de Dave Engine: ' + loadedDave.join(', '));
 		if (ignored.length > 0)
-			log('Clases de V-Slice que Flux todavía no usa (por ahora módulos, tipos de nota y eventos): ' + ignored.join(', '));
+			log('Clases que Flux todavía no usa (por ahora módulos, tipos de nota, eventos y lo de Dave Engine): ' + ignored.join(', '));
 
 		callEvent(new ScriptEvent(ScriptEventType.CREATE));
 	}
@@ -225,6 +241,9 @@ class FluxVSliceModules
 			callEvent(new ScriptEvent(ScriptEventType.DESTROY));
 		for (name in classOrder)
 			RuleScriptedClassUtil.types.remove(name);
+		#if FLUX_DAVE_SCRIPTS
+		flux.dave.DaveScripts.clear();
+		#end
 		modules = [];
 		moduleInfo = new ObjectMap<Module, VSliceClassInfo>();
 		noteKinds = new Map<String, NoteKind>();
@@ -301,7 +320,8 @@ class FluxVSliceModules
 				name: c.name,
 				superName: c.superName,
 				mod: mod,
-				file: file
+				file: file,
+				superId: c.superId
 			});
 			classOrder.push(c.name);
 			RuleScriptedClassUtil.registerRuleScriptedClass(c.name, c.expr);
@@ -315,6 +335,10 @@ class FluxVSliceModules
 		var where:String = info != null ? '${info.name} (${info.file})' : typeName;
 
 		var interp:FluxVSliceInterp = new FluxVSliceInterp();
+		#if FLUX_DAVE_SCRIPTS
+		if (flux.dave.DaveScripts.isDaveClass(typeName))
+			interp.enableDave(); // los imports por defecto de Dave Engine (PlayState, BGSprite, Paths...)
+		#end
 		var script:RuleScript = new RuleScript(interp);
 		script.scriptName = info != null ? info.file : typeName;
 		script.superInstance = superInstance;

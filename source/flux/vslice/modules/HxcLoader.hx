@@ -16,6 +16,9 @@ typedef HxcClass =
 
 	/** Cuerpo de la clase listo para RuleScript (imports + funciones + variables). */
 	var expr:Expr;
+
+	/** El primer texto del `super(...)` del constructor (el id en Dave Engine: `super('dave')`). */
+	var ?superId:String;
 }
 
 /**
@@ -78,8 +81,57 @@ class HxcLoader
 
 		var result:Array<HxcClass> = [];
 		for (c in classes)
-			result.push({name: c.name, superName: typeName(c.extend), expr: classExpr(header, c)});
+			result.push({
+				name: c.name,
+				superName: typeName(c.extend),
+				expr: classExpr(header, c),
+				superId: superId(c)
+			});
 		return result;
+	}
+
+	static function superId(c:ClassDecl):String
+	{
+		for (field in c.fields)
+			if (field.name == 'new')
+				switch (field.kind)
+				{
+					case KFunction(f):
+						return findSuperId(f.expr);
+					default:
+				}
+		return null;
+	}
+
+	static function findSuperId(e:Expr):String
+	{
+		if (e == null)
+			return null;
+		switch (def(e))
+		{
+			case EBlock(list):
+				for (x in list)
+				{
+					var found:String = findSuperId(x);
+					if (found != null)
+						return found;
+				}
+			case ECall(callee, args):
+				switch (def(callee))
+				{
+					case EIdent('super'):
+						if (args.length > 0)
+							switch (def(args[0]))
+							{
+								case EConst(CString(id)):
+									return id;
+								default:
+							}
+					default:
+				}
+			default:
+		}
+		return null;
 	}
 
 	static function typeName(type:CType):String

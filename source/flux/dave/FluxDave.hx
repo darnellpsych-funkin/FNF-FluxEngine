@@ -67,6 +67,25 @@ class FluxDave
 		}
 	}
 
+	/** Si la canción que se cargó es de Dave Engine (tiene su data/songs/<id>/<id>-metadata.json de Dave). */
+	public static function isDaveSong(song:SwagSong):Bool
+	{
+		var name:String = Song.loadedSongName != null ? Song.loadedSongName : (song != null ? song.song : null);
+		if (name == null || name.length == 0)
+			return false;
+		var path:String = findDataFile(Paths.formatToSongPath(name), 'metadata', '');
+		if (path == null)
+			return false;
+		try
+		{
+			return DaveData.isSongMeta(Json.parse(File.getContent(path)));
+		}
+		catch (e:Dynamic)
+		{
+			return false;
+		}
+	}
+
 	/** data/songs/<id>/<id>-<kind>[-variación].json en el mod actual, los globales o mods/ */
 	public static function findDataFile(id:String, kind:String, variation:String):String
 	{

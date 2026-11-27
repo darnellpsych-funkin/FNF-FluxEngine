@@ -19,8 +19,29 @@ class FluxVSliceInterp extends FluxRuleScriptInterp
 	/** Tipos que el script importó y que Flux todavía no tiene. */
 	public var missingTypes(default, null):Array<String> = [];
 
+	/** Si es un script de Dave Engine (personaje o escenario). */
+	public var dave(default, null):Bool = false;
+
+	/** Para los scripts de Dave Engine: sus imports (play.*, audio.*...) y sus clases sin importar. */
+	public function enableDave():Void
+	{
+		dave = true;
+		#if FLUX_DAVE_SCRIPTS
+		if (variables != null)
+			flux.dave.api.DaveApi.DaveTypes.applyGlobals(variables);
+		#end
+	}
+
 	override function resolveType(path:String):Dynamic
 	{
+		#if FLUX_DAVE_SCRIPTS
+		if (dave)
+		{
+			var daveType:Dynamic = flux.dave.api.DaveApi.DaveTypes.resolve(path);
+			if (daveType != null)
+				return daveType;
+		}
+		#end
 		var type:Dynamic = VSliceTypes.resolve(path);
 		if (type != null)
 			return type;
