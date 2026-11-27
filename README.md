@@ -1,6 +1,6 @@
 # Flux Engine
 
-Fork de **Psych Engine 1.0.4** con más lenguajes de scripting, compatibilidad con mods de **V-Slice**, **modcharts** (FunkinModchart) y charts de **osu!mania, StepMania, Quaver y Codename** (Moonchart).
+Fork de **Psych Engine 1.0.4** con más lenguajes de scripting, compatibilidad con mods de **V-Slice** y **Codename Engine**, **multi-keys** (4 a 17 teclas), **modcharts** (FunkinModchart) y charts de **osu!mania, StepMania, Quaver y Codename** (Moonchart).
 
 ## Scripting de Flux Engine
 
@@ -286,6 +286,25 @@ Cómo agregar una canción:
 - Flux arregla dos cosas de Moonchart 0.5.1: el `AudioLeadIn` de osu! (adelantaba las notas) y los `.ssc` con varias dificultades (salían todas iguales).
 
 Para desactivarlo, comenta `MOONCHART_ALLOWED` en `Project.xml`.
+
+## Mods de Codename Engine (fase 1)
+
+Flux carga mods hechos para [Codename Engine](https://github.com/CodenameCrew/CodenameEngine): copia la carpeta del mod a `mods/` tal cual.
+
+| De Codename | En Flux |
+|---|---|
+| `songs/<canción>/charts/*.json`, `meta.json`, `song/Inst.ogg` y `Voices.ogg` | Charts y audio (con Moonchart, ver arriba) |
+| `songs/<canción>/events.json` y los eventos del chart | Eventos de la canción (ver abajo) |
+| `data/characters/<nombre>.xml` | Personajes (si no hay uno de Psych o de V-Slice con ese nombre) |
+| `data/stages/<nombre>.xml` | Escenarios (si no hay uno de Psych o de V-Slice) |
+| `data/weeks/weeks/*.xml` (y el orden de `weeks.txt`) | Semanas en Story Mode y Freeplay; el ícono y el color salen del `meta.json` de cada canción |
+
+- **Personajes**: animaciones con `indices` (`"2..12,0,1"`), offsets, escala, `x`/`y`, `camx`/`camy`, `holdTime`, `flipX`, `icon`, `color`, `antialiasing`, `interval` y `gameOverChar`. Si un personaje se usa del otro lado (un oponente como jugador), se cambian izquierda y derecha como en Codename.
+- **Escenarios**: `sprite`, `box`/`solid`, `boyfriend`/`girlfriend`/`dad` (con `camxoffset`, `camyoffset`, `scroll` y `alpha`), `high-memory`/`low-memory` (con "Low Quality"), `type="beat"` (baila en el beat, con `beatInterval` y `beatOffset`), `type="loop"`, `<property>`, `zoom` y `startCamPosX`/`startCamPosY`. Cada sprite queda en las variables del juego con su nombre (`getProperty('bg')` en Lua).
+- **Eventos**: `Add Camera Zoom`, `Camera Bop`, `Play Animation`, `Character Change`, `Scroll Speed Change` y `Camera Position` pasan a los de Psych; `Camera Zoom`, `Camera Flash`, `Camera Modulo Change`, `HScript Call` (llama la función en todos los scripts) y `Alt Animation Toggle` los hace Flux. `Camera Movement` y `BPM Change` ya van en las secciones. Los eventos de scripts llegan a `onEvent` con sus dos primeros parámetros.
+- Los scripts `.hx` de Codename (de canción, escenario, personaje y globales) todavía no se cargan: es la fase 2. Tampoco los personajes del menú del Story Mode en XML (se usan los de Psych con el mismo nombre o BF y GF).
+
+Para desactivarlo, comenta `FLUX_CODENAME` en `Project.xml`.
 
 ## Multi-Keys (de 4 a 17 teclas)
 

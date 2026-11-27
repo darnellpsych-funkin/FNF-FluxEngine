@@ -230,6 +230,11 @@ class FluxMoonchart
 				for (line in lines)
 					if (line.position == 'girlfriend') hasGf = true;
 			if (!hasGf) song.gfVersion = 'gf';
+
+			#if FLUX_CODENAME
+			// eventos de Codename (del chart y de events.json) con todos sus parámetros
+			flux.codename.CodenameEvents.applyToSong(song, chart, Path.join([Path.directory(Path.directory(file.path)), 'events.json']));
+			#end
 		}
 		else song.needsVoices = false; // osu!mania, Quaver y StepMania traen un solo audio
 	}
