@@ -144,6 +144,10 @@ class WeekData {
 		// Flux Engine: semanas de mods de Codename (data/weeks/weeks/*.xml)
 		flux.codename.CodenameWeeks.addWeeks(directories, originalLength, isStoryMode);
 		#end
+		#if FLUX_DAVE
+		// Flux Engine: canciones de mods de Dave Engine (data/songs/<id>/<id>-metadata.json), en Freeplay
+		flux.dave.FluxDave.addWeeks(directories, originalLength, isStoryMode);
+		#end
 	}
 
 	private static function addWeek(weekToCheck:String, path:String, directory:String, i:Int, originalLength:Int)
