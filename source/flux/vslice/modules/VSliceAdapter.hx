@@ -375,7 +375,7 @@ class VSliceAdapter
 			case 'isHoldNote':
 				return note.isSustainNote;
 			case 'direction':
-				return note.noteData % 4;
+				return flux.keys.FluxKeys.dir4(note.noteData); // con multi-keys: la dirección del carril
 			case 'length':
 				return note.sustainLength;
 			case 'lowPriority':

@@ -47,6 +47,11 @@ class ControlsSubState extends MusicBeatSubstate
 	var curOptionsValid:Array<Int>;
 	static var defaultKey:String = 'Reset to Default Keys';
 
+	// Flux Engine: multi-keys, Q/E cambia entre las teclas de 4K (la lista de siempre) y las de 5 a 17 teclas
+	static var keyPage:Int = 4;
+	var baseOptions:Array<Dynamic>;
+	var keyPageText:Alphabet;
+
 	var bg:FlxSprite;
 	var grpDisplay:FlxTypedGroup<Alphabet>;
 	var grpBlacks:FlxTypedGroup<AttachedSprite>;
@@ -71,6 +76,8 @@ class ControlsSubState extends MusicBeatSubstate
 		options.push([true]);
 		options.push([true]);
 		options.push([true, defaultKey]);
+		baseOptions = options;
+		if(keyPage != 4) options = flux.keys.FluxKeys.controlOptions(keyPage, defaultKey);
 
 		bg = new FlxSprite().loadGraphic(Paths.image('menuDesat'));
 		bg.color = keyboardColor;
@@ -108,6 +115,11 @@ class ControlsSubState extends MusicBeatSubstate
 		text.alignment = CENTERED;
 		text.setScale(0.4);
 		add(text);
+
+		keyPageText = new Alphabet(60, 125, 'Q/E ${keyPage}K', false);
+		keyPageText.alignment = CENTERED;
+		keyPageText.setScale(0.4);
+		add(keyPageText);
 
 		createTexts();
 	}
@@ -286,6 +298,8 @@ class ControlsSubState extends MusicBeatSubstate
 				return;
 			}
 			if(FlxG.keys.justPressed.CONTROL || FlxG.gamepads.anyJustPressed(LEFT_SHOULDER) || FlxG.gamepads.anyJustPressed(RIGHT_SHOULDER)) swapMode();
+			if(FlxG.keys.justPressed.Q || FlxG.gamepads.anyJustPressed(LEFT_TRIGGER)) changeKeyPage(-1);
+			else if(FlxG.keys.justPressed.E || FlxG.gamepads.anyJustPressed(RIGHT_TRIGGER)) changeKeyPage(1);
 
 			if(FlxG.keys.justPressed.LEFT || FlxG.keys.justPressed.RIGHT || FlxG.gamepads.anyJustPressed(DPAD_LEFT) || FlxG.gamepads.anyJustPressed(DPAD_RIGHT) ||
 				FlxG.gamepads.anyJustPressed(LEFT_STICK_DIGITAL_LEFT) || FlxG.gamepads.anyJustPressed(LEFT_STICK_DIGITAL_RIGHT)) updateAlt(true);
@@ -320,7 +334,8 @@ class ControlsSubState extends MusicBeatSubstate
 				else
 				{
 					// Reset to Default
-					ClientPrefs.resetKeys(!onKeyboardMode);
+					if(keyPage != 4) flux.keys.FluxKeys.resetBinds(keyPage, !onKeyboardMode); // Flux Engine: solo las de estas teclas
+					else ClientPrefs.resetKeys(!onKeyboardMode);
 					ClientPrefs.reloadVolumeKeys();
 					var lastSel:Int = curSelected;
 					createTexts();
@@ -497,6 +512,17 @@ class ControlsSubState extends MusicBeatSubstate
 
 		updateAlt();
 		FlxG.sound.play(Paths.sound('scrollMenu'));
+	}
+
+	// Flux Engine: multi-keys, cambia la página de teclas (4K, 5K ... 17K)
+	function changeKeyPage(change:Int)
+	{
+		keyPage = FlxMath.wrap(keyPage + change, flux.keys.FluxKeysData.MIN_SETTING, flux.keys.FluxKeysData.MAX_KEYS);
+		options = (keyPage == 4) ? baseOptions : flux.keys.FluxKeys.controlOptions(keyPage, defaultKey);
+		keyPageText.text = 'Q/E ${keyPage}K';
+		curSelected = 0;
+		curAlt = false;
+		createTexts();
 	}
 
 	function swapMode()

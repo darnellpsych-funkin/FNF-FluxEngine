@@ -46,6 +46,7 @@ import states.TitleState;
 	public var checkForUpdates:Bool = true;
 	public var comboStacking:Bool = true;
 	public var gameplaySettings:Map<String, Dynamic> = [
+		'keycount' => 'Chart', // Flux Engine: multi-keys ("Chart" o "4K"..."17K")
 		'scrollspeed' => 1.0,
 		'scrolltype' => 'multiplicative', 
 		// anyone reading this, amod is multiplicative speed mod, cmod is constant speed mod, and xmod is bpm based speed mod.
@@ -150,6 +151,7 @@ class ClientPrefs {
 
 	public static function loadDefaultKeys()
 	{
+		flux.keys.FluxKeys.addDefaultBinds(keyBinds, gamepadBinds); // Flux Engine: controles de multi-keys (1 a 17 teclas)
 		defaultKeys = keyBinds.copy();
 		defaultButtons = gamepadBinds.copy();
 	}

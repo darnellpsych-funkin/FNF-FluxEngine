@@ -156,7 +156,7 @@ class VSStrumline
 
 		// el receptor vuelve solo a "static", como con el botplay de Psych
 		var strum:StrumNote = strumAt(psychNote.noteData);
-		if (strum != null && !heldKeys[psychNote.noteData % 4])
+		if (strum != null && !heldKeys[flux.keys.FluxKeys.dir4(psychNote.noteData)])
 			strum.resetAnim = Conductor.stepCrochet * 1.25 / 1000 / game.playbackRate;
 	}
 
@@ -289,7 +289,7 @@ class VSNoteData
 	public var data(get, never):Int;
 
 	function get_data():Int
-		return (note.noteData % 4) + (note.mustPress ? 0 : 4);
+		return flux.keys.FluxKeys.dir4(note.noteData) + (note.mustPress ? 0 : 4); // con multi-keys: la dirección del carril
 
 	public var length(get, set):Float;
 
@@ -308,10 +308,10 @@ class VSNoteData
 		return note.noteType = value;
 
 	public function getDirection(strumlineSize:Int = 4):Int
-		return note.noteData % strumlineSize;
+		return strumlineSize == 4 ? flux.keys.FluxKeys.dir4(note.noteData) : note.noteData % strumlineSize;
 
 	public function getDirectionName(strumlineSize:Int = 4):String
-		return DIRECTION_NAMES[note.noteData % 4];
+		return DIRECTION_NAMES[flux.keys.FluxKeys.dir4(note.noteData)];
 
 	public function getMustHitNote(strumlineSize:Int = 4):Bool
 		return note.mustPress;

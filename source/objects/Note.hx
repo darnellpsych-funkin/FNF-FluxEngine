@@ -173,10 +173,10 @@ class Note extends FlxSprite
 
 	public function defaultRGB()
 	{
-		var arr:Array<FlxColor> = ClientPrefs.data.arrowRGB[noteData];
-		if(PlayState.isPixelStage) arr = ClientPrefs.data.arrowRGBPixel[noteData];
+		// Flux Engine: multi-keys, el color sale del carril (en 4K es ClientPrefs.data.arrowRGB[noteData], como siempre)
+		var arr:Array<FlxColor> = flux.keys.FluxKeys.laneColors(noteData, PlayState.isPixelStage);
 
-		if (arr != null && noteData > -1 && noteData <= arr.length)
+		if (arr != null && noteData > -1)
 		{
 			rgbShader.r = arr[0];
 			rgbShader.g = arr[1];
@@ -260,14 +260,14 @@ class Note extends FlxSprite
 
 		if(noteData > -1)
 		{
-			rgbShader = new RGBShaderReference(this, initializeGlobalRGBShader(noteData));
+			rgbShader = new RGBShaderReference(this, initializeGlobalRGBShader(flux.keys.FluxKeys.colorSlot(noteData)));
 			if(PlayState.SONG != null && PlayState.SONG.disableNoteRGB) rgbShader.enabled = false;
 			texture = '';
 
 			x += swagWidth * (noteData);
-			if(!isSustainNote && noteData < colArray.length) { //Doing this 'if' check to fix the warnings on Senpai songs
+			if(!isSustainNote && noteData < flux.keys.FluxKeys.current) { //Doing this 'if' check to fix the warnings on Senpai songs
 				var animToPlay:String = '';
-				animToPlay = colArray[noteData % colArray.length];
+				animToPlay = flux.keys.FluxKeys.laneAnim(this, true); // Flux Engine: multi-keys (en 4K es colArray[noteData % 4])
 				animation.play(animToPlay + 'Scroll');
 			}
 		}
@@ -287,18 +287,18 @@ class Note extends FlxSprite
 			offsetX += width / 2;
 			copyAngle = false;
 
-			animation.play(colArray[noteData % colArray.length] + 'holdend');
+			animation.play(flux.keys.FluxKeys.laneAnim(this, true) + 'holdend');
 
 			updateHitbox();
 
 			offsetX -= width / 2;
 
 			if (PlayState.isPixelStage)
-				offsetX += 30;
+				offsetX += 30 * flux.keys.FluxKeys.noteScale;
 
 			if (prevNote.isSustainNote)
 			{
-				prevNote.animation.play(colArray[prevNote.noteData % colArray.length] + 'hold');
+				prevNote.animation.play(flux.keys.FluxKeys.laneAnim(prevNote, true) + 'hold');
 
 				prevNote.scale.y *= Conductor.stepCrochet / 100 * 1.05;
 				if(createdFrom != null && createdFrom.songSpeed != null) prevNote.scale.y *= createdFrom.songSpeed;
@@ -331,9 +331,10 @@ class Note extends FlxSprite
 		if(globalRgbShaders[noteData] == null)
 		{
 			var newRGB:RGBPalette = new RGBPalette();
-			var arr:Array<FlxColor> = (!PlayState.isPixelStage) ? ClientPrefs.data.arrowRGB[noteData] : ClientPrefs.data.arrowRGBPixel[noteData];
+			// Flux Engine: multi-keys, noteData es el color (0-3 los de siempre, 4-8 los colores extra)
+			var arr:Array<FlxColor> = flux.keys.FluxKeys.slotColors(noteData, PlayState.isPixelStage);
 			
-			if (arr != null && noteData > -1 && noteData <= arr.length)
+			if (arr != null && noteData > -1)
 			{
 				newRGB.r = arr[0];
 				newRGB.g = arr[1];
@@ -367,6 +368,7 @@ class Note extends FlxSprite
 				skin = defaultNoteSkin + postfix;
 		}
 		else rgbShader.enabled = false;
+		skin = flux.keys.FluxKeys.laneSkin(skin, noteData); // Flux Engine: multi-keys (círculo en el carril del centro)
 
 		var animName:String = null;
 		if(animation.curAnim != null) {
@@ -394,7 +396,7 @@ class Note extends FlxSprite
 				var graphic = Paths.image('pixelUI/' + skinPixel + skinPostfix);
 				loadGraphic(graphic, true, Math.floor(graphic.width / 4), Math.floor(graphic.height / 5));
 			}
-			setGraphicSize(Std.int(width * PlayState.daPixelZoom));
+			setGraphicSize(Std.int(width * PlayState.daPixelZoom * flux.keys.FluxKeys.noteScale));
 			loadPixelNoteAnims();
 			antialiasing = false;
 
@@ -419,7 +421,7 @@ class Note extends FlxSprite
 		updateHitbox();
 
 		if(animName != null)
-			animation.play(animName, true);
+			animation.play(flux.keys.FluxKeys.fixAnim(this, animName), true);
 	}
 
 	public static function getNoteSkinPostfix()
@@ -431,30 +433,34 @@ class Note extends FlxSprite
 	}
 
 	function loadNoteAnims() {
-		if (colArray[noteData] == null)
+		// Flux Engine: multi-keys, el color/dirección sale del carril (en 4K es colArray[noteData], como siempre)
+		var color:String = flux.keys.FluxKeys.laneAnim(this);
+		if (color == null)
 			return;
 
 		if (isSustainNote)
 		{
 			attemptToAddAnimationByPrefix('purpleholdend', 'pruple end hold', 24, true); // this fixes some retarded typo from the original note .FLA
-			animation.addByPrefix(colArray[noteData] + 'holdend', colArray[noteData] + ' hold end', 24, true);
-			animation.addByPrefix(colArray[noteData] + 'hold', colArray[noteData] + ' hold piece', 24, true);
+			animation.addByPrefix(color + 'holdend', color + ' hold end', 24, true);
+			animation.addByPrefix(color + 'hold', color + ' hold piece', 24, true);
 		}
-		else animation.addByPrefix(colArray[noteData] + 'Scroll', colArray[noteData] + '0');
+		else animation.addByPrefix(color + 'Scroll', color + '0');
 
-		setGraphicSize(Std.int(width * 0.7));
+		setGraphicSize(Std.int(width * 0.7 * flux.keys.FluxKeys.noteScale));
 		updateHitbox();
 	}
 
 	function loadPixelNoteAnims() {
-		if (colArray[noteData] == null)
+		var color:String = flux.keys.FluxKeys.laneAnim(this);
+		if (color == null)
 			return;
 
+		var column:Int = flux.keys.FluxKeys.pixelColumn(this); // Flux Engine: multi-keys (en 4K es noteData)
 		if(isSustainNote)
 		{
-			animation.add(colArray[noteData] + 'holdend', [noteData + 4], 24, true);
-			animation.add(colArray[noteData] + 'hold', [noteData], 24, true);
-		} else animation.add(colArray[noteData] + 'Scroll', [noteData + 4], 24, true);
+			animation.add(color + 'holdend', [column + 4], 24, true);
+			animation.add(color + 'hold', [column], 24, true);
+		} else animation.add(color + 'Scroll', [column + 4], 24, true);
 	}
 
 	function attemptToAddAnimationByPrefix(name:String, prefix:String, framerate:Float = 24, doLoop:Bool = true)
@@ -531,16 +537,16 @@ class Note extends FlxSprite
 			{
 				if(PlayState.isPixelStage)
 				{
-					y -= PlayState.daPixelZoom * 9.5;
+					y -= PlayState.daPixelZoom * 9.5 * flux.keys.FluxKeys.noteScale;
 				}
-				y -= (frameHeight * scale.y) - (Note.swagWidth / 2);
+				y -= (frameHeight * scale.y) - (Note.swagWidth * flux.keys.FluxKeys.noteScale / 2);
 			}
 		}
 	}
 
 	public function clipToStrumNote(myStrum:StrumNote)
 	{
-		var center:Float = myStrum.y + offsetY + Note.swagWidth / 2;
+		var center:Float = myStrum.y + offsetY + Note.swagWidth * flux.keys.FluxKeys.noteScale / 2; // Flux Engine: multi-keys
 		if((mustPress || !ignoreNote) && (wasGoodHit || (prevNote.wasGoodHit && !canBeHit)))
 		{
 			var swagRect:FlxRect = clipRect;

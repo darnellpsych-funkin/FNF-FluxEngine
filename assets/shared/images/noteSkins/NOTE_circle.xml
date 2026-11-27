@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="NOTE_circle.png">
+	<!-- Flux Engine: nota circulo para el carril del centro (multi-keys) -->
+	<SubTexture name="white0000" x="2" y="2" width="157" height="154"/>
+	<SubTexture name="white hold piece0000" x="161" y="2" width="50" height="44"/>
+	<SubTexture name="white hold end0000" x="213" y="2" width="50" height="64"/>
+	<SubTexture name="arrowCIRCLE0000" x="265" y="2" width="157" height="154"/>
+	<SubTexture name="circle press0000" x="424" y="2" width="153" height="150"/>
+	<SubTexture name="circle press0001" x="579" y="2" width="153" height="150"/>
+	<SubTexture name="circle press0002" x="734" y="2" width="153" height="150"/>
+	<SubTexture name="circle press0003" x="889" y="2" width="153" height="150"/>
+	<SubTexture name="circle confirm0000" x="1044" y="2" width="236" height="232"/>
+	<SubTexture name="circle confirm0001" x="1282" y="2" width="236" height="232"/>
+	<SubTexture name="circle confirm0002" x="1520" y="2" width="236" height="232"/>
+	<SubTexture name="circle confirm0003" x="1758" y="2" width="236" height="232"/>
+</TextureAtlas>

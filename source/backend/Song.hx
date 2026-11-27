@@ -99,6 +99,10 @@ class Song
 		var sectionsData:Array<SwagSection> = songJson.notes;
 		if(sectionsData == null) return;
 
+		// Flux Engine: multi-keys, los charts viejos de más teclas (Psych Extra Keys, Shaggy...) se convierten con sus teclas
+		var keys:Int = flux.keys.FluxKeysData.chartKeys(songJson, true);
+		if(keys != 4 || Reflect.hasField(songJson, 'mania')) songJson.keyCount = keys;
+
 		for (section in sectionsData)
 		{
 			var beats:Null<Float> = cast section.sectionBeats;
@@ -110,8 +114,8 @@ class Song
 
 			for (note in section.sectionNotes)
 			{
-				var gottaHitNote:Bool = (note[1] < 4) ? section.mustHitSection : !section.mustHitSection;
-				note[1] = (note[1] % 4) + (gottaHitNote ? 0 : 4);
+				var gottaHitNote:Bool = (note[1] < keys) ? section.mustHitSection : !section.mustHitSection;
+				note[1] = (note[1] % keys) + (gottaHitNote ? 0 : keys);
 
 				if(!Std.isOfType(note[3], String))
 					note[3] = Note.defaultNoteTypes[note[3]]; //compatibility with Week 7 and 0.1-0.3 psych charts

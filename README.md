@@ -287,6 +287,39 @@ Cómo agregar una canción:
 
 Para desactivarlo, comenta `MOONCHART_ALLOWED` en `Project.xml`.
 
+## Multi-Keys (de 4 a 17 teclas)
+
+Cualquier canción se puede jugar con más (o menos) teclas, como en Psych Online. En Freeplay abre **Gameplay Changers** (Ctrl) y en **Multi-Keys** elige con izquierda/derecha:
+
+- `Chart`: las teclas que trae el chart (4 en las canciones normales).
+- `4K` a `17K`: convierte la canción a esa cantidad de teclas.
+
+La conversión respeta la dirección de cada flecha (una izquierda sigue siendo izquierda; abajo y arriba también usan el círculo del centro), mantiene los jacks y los acordes, no pone notas encima de una sostenida y reparte las notas por todas las teclas. Siempre sale igual para la misma canción. Si bajas de teclas (por ejemplo un chart de 9K a 4K), los acordes más grandes que las teclas pierden notas.
+
+| Teclas | Flechas | Teclado |
+|---|---|---|
+| 5K | ← ↓ ● ↑ → | D F Espacio J K (y las flechas) |
+| 6K | ← ↑ → ← ↓ → | S D F J K L |
+| 7K | ← ↑ → ● ← ↓ → | S D F Espacio J K L |
+| 8K | ← ↓ ↑ → ← ↓ ↑ → | A S D F H J K L |
+| 9K | ← ↓ ↑ → ● ← ↓ ↑ → | A S D F Espacio H J K L |
+| 10K | ← ↓ ↑ → ● ● ← ↓ ↑ → | A S D F V N J K L ; |
+| 11K | ← ↓ ↑ → ← ● → ← ↓ ↑ → | A S D F R Espacio U J K L ; |
+| 12K | ← ↓ ↑ → × 3 | A S D F E R U I J K L ; |
+| 13K | ← ↓ ↑ → ← ↓ ● ↑ → ← ↓ ↑ → | A S D F E R Espacio U I J K L ; |
+| 14K | ← ↓ ↑ → ← ↑ → ← ↓ → ← ↓ ↑ → | A S D F W E R U I O J K L ; |
+| 15K | ← ↓ ↑ → ← ↑ → ● ← ↓ → ← ↓ ↑ → | A S D F W E R Espacio U I O J K L ; |
+| 16K | ← ↓ ↑ → × 4 | A S D F Q W E R U I O P J K L ; |
+| 17K | ← ↓ ↑ → ← ↓ ↑ → ● ← ↓ ↑ → ← ↓ ↑ → | A S D F Q W E R Espacio U I O P J K L ; |
+
+- **Controles**: en Opciones > Controles, **Q/E** (con mando, los gatillos) cambia entre 4K, 5K... 17K. "Reset to Default Keys" en esas páginas solo reinicia las de esa cantidad de teclas. Con mando, de 5K a 9K ya vienen asignadas. En teclado en español, `;` puede ser la Ñ: si no responde, cámbiala ahí.
+- Si una nota usa la R (la tecla de reinicio), en esa canción la R no te mata.
+- **Colores**: izquierda, abajo, arriba y derecha usan tus colores de "Note Colors"; las teclas extra usan amarillo, violeta, rojo oscuro y azul oscuro, y el centro (●) es blanco.
+- **Nota del centro**: es un círculo (`images/noteSkins/NOTE_circle` y `images/pixelUI/noteSkins/NOTE_circle`). Una skin de un mod puede traer el suyo como `<skin>-circle.png/.xml` (frames `white0000`, `white hold piece`, `white hold end`, `arrowCIRCLE`, `circle press` y `circle confirm`); si no tiene, el centro usa la flecha de arriba.
+- **Charts de más teclas**: se juegan tal cual con `"keyCount": 7` en el JSON (carriles `0` a `keyCount - 1` del jugador y el resto del oponente) o con el `mania` de Psych Extra Keys (`mania + 1` teclas) o del mod de Shaggy (0 = 4K, 1 = 6K, 2 = 7K, 3 = 9K, 4 = 5K). Los charts viejos con `mustHitSection` también.
+- **Scripts**: en Lua está la variable `keyCount`; en HScript, `FluxKeys.current` (con `import flux.keys.FluxKeys;`) y `FluxKeys.chartCount` (las teclas del chart). `defaultPlayerStrumX0`... existen para todas las teclas, y los colores extra se cambian en `flux.keys.FluxKeysData.extraColors`. Ejemplo: [`docs/flux-examples/multikeys.lua`](docs/flux-examples/multikeys.lua).
+- Los dos lados juegan con la misma cantidad de teclas. El editor de charts sigue siendo de 4K, y los charts de osu!mania y Quaver siguen siendo solo de 4 teclas.
+
 ## Compilar
 
 En Windows:

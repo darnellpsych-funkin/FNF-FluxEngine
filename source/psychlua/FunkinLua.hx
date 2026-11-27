@@ -158,6 +158,7 @@ class FunkinLua {
 			set('guitarHeroSustains', game.guitarHeroSustains);
 			set('instakillOnMiss', game.instakillOnMiss);
 			set('botPlay', game.cpuControlled);
+			set('keyCount', flux.keys.FluxKeys.current); // Flux Engine: multi-keys
 			set('practice', game.practiceMode);
 	
 			for (i in 0...4) {

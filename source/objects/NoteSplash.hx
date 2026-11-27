@@ -207,10 +207,14 @@ class NoteSplash extends FlxSprite
 		setPosition(x, y);
 
 		if (babyArrow != null)
-			setPosition(babyArrow.x - Note.swagWidth * 0.95, babyArrow.y - Note.swagWidth); // To prevent it from being misplaced for one game tick
+			setPosition(babyArrow.x - Note.swagWidth * 0.95 - flux.keys.FluxKeys.splashShift, babyArrow.y - Note.swagWidth - flux.keys.FluxKeys.splashShift); // To prevent it from being misplaced for one game tick
 
 		if (note != null)
 			noteData = note.noteData;
+
+		// Flux Engine: multi-keys, la animación sale de la dirección y el color del carril (en 4K no cambia nada)
+		var colorSlot:Int = flux.keys.FluxKeys.colorSlot(noteData);
+		noteData = flux.keys.FluxKeys.splashDir(noteData);
 
 		if (randomize && maxAnims > 1)
 			noteData = noteData % Note.colArray.length + (FlxG.random.int(0, maxAnims - 1) * Note.colArray.length);
@@ -221,7 +225,7 @@ class NoteSplash extends FlxSprite
 		var tempShader:RGBPalette = null;
 		if (config.allowRGB)
 		{
-			Note.initializeGlobalRGBShader(noteData % Note.colArray.length);
+			Note.initializeGlobalRGBShader(colorSlot);
 			if (inEditor || (note == null || note.noteSplashData.useRGBShader) && (PlayState.SONG == null || !PlayState.SONG.disableNoteRGB))
 			{
 				tempShader = new RGBPalette();
@@ -235,8 +239,7 @@ class NoteSplash extends FlxSprite
 						{
 							if (i > 2) break;
 
-							var arr:Array<FlxColor> = ClientPrefs.data.arrowRGB[noteData % Note.colArray.length];
-							if (PlayState.isPixelStage) arr = ClientPrefs.data.arrowRGBPixel[noteData % Note.colArray.length];
+							var arr:Array<FlxColor> = flux.keys.FluxKeys.slotColors(colorSlot, PlayState.isPixelStage);
 
 							var rgb = colors[i];
 							if (rgb == null)
@@ -261,7 +264,7 @@ class NoteSplash extends FlxSprite
 							else if (i == 2) tempShader.b = color;
 						}
 					}
-					else tempShader.copyValues(Note.globalRgbShaders[noteData % Note.colArray.length]);
+					else tempShader.copyValues(Note.globalRgbShaders[colorSlot]);
 
 					if (note != null)
 					{
@@ -270,7 +273,7 @@ class NoteSplash extends FlxSprite
 						if (note.noteSplashData.b != -1) tempShader.b = note.noteSplashData.b;
 					}
 				}
-				else tempShader.copyValues(Note.globalRgbShaders[noteData % Note.colArray.length]);
+				else tempShader.copyValues(Note.globalRgbShaders[colorSlot]);
 			}
 		}
 		rgbShader.copyValues(tempShader);
@@ -351,10 +354,10 @@ class NoteSplash extends FlxSprite
 		if (babyArrow != null)
 		{
 			if (copyX)
-				x = babyArrow.x - Note.swagWidth * 0.95;
+				x = babyArrow.x - Note.swagWidth * 0.95 - flux.keys.FluxKeys.splashShift;
 
 			if (copyY)
-				y = babyArrow.y - Note.swagWidth;
+				y = babyArrow.y - Note.swagWidth - flux.keys.FluxKeys.splashShift;
 		}
 		super.update(elapsed);
 	}
@@ -409,7 +412,7 @@ class NoteSplash extends FlxSprite
 			}
 		}
 
-		scale.set(value.scale, value.scale);
+		scale.set(value.scale * flux.keys.FluxKeys.noteScale, value.scale * flux.keys.FluxKeys.noteScale); // Flux Engine: multi-keys
 		return config = value;
 	}
 
