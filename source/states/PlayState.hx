@@ -471,7 +471,7 @@ class PlayState extends MusicBeatState
 				#end
 
 				#if HSCRIPT_ALLOWED
-				if(file.toLowerCase().endsWith('.hx'))
+				if(file.toLowerCase().endsWith('.hx') || file.toLowerCase().endsWith('.hscript')) // Flux Engine: .hscript es igual que .hx
 					initHScript(folder + file);
 				#end
 
@@ -498,7 +498,7 @@ class PlayState extends MusicBeatState
 		#if (LUA_ALLOWED || HSCRIPT_ALLOWED || FLUX_SCRIPTS_ALLOWED)
 		// STAGE SCRIPTS
 		#if LUA_ALLOWED startLuasNamed('stages/' + curStage + '.lua'); #end
-		#if HSCRIPT_ALLOWED startHScriptsNamed('stages/' + curStage + '.hx'); #end
+		#if HSCRIPT_ALLOWED startHScriptsNamed('stages/' + curStage + '.hx'); startHScriptsNamed('stages/' + curStage + '.hscript'); #end
 		#if FLUX_SCRIPTS_ALLOWED startFluxScriptsNamed('stages/' + curStage); #end
 
 		// CHARACTER SCRIPTS
@@ -615,9 +615,11 @@ class PlayState extends MusicBeatState
 
 		#if HSCRIPT_ALLOWED
 		for (notetype in noteTypes)
-			startHScriptsNamed('custom_notetypes/' + notetype + '.hx');
+			for (ext in ['.hx', '.hscript']) // Flux Engine: .hscript es igual que .hx
+				startHScriptsNamed('custom_notetypes/' + notetype + ext);
 		for (event in eventsPushed)
-			startHScriptsNamed('custom_events/' + event + '.hx');
+			for (ext in ['.hx', '.hscript'])
+				startHScriptsNamed('custom_events/' + event + ext);
 		#end
 
 		#if FLUX_SCRIPTS_ALLOWED
@@ -640,7 +642,7 @@ class PlayState extends MusicBeatState
 				#end
 
 				#if HSCRIPT_ALLOWED
-				if(file.toLowerCase().endsWith('.hx'))
+				if(file.toLowerCase().endsWith('.hx') || file.toLowerCase().endsWith('.hscript')) // Flux Engine: .hscript es igual que .hx
 					initHScript(folder + file);
 				#end
 
@@ -836,8 +838,9 @@ class PlayState extends MusicBeatState
 
 		// HScript
 		#if HSCRIPT_ALLOWED
+		for (ext in ['.hx', '.hscript']) { // Flux Engine: .hscript es igual que .hx
 		var doPush:Bool = false;
-		var scriptFile:String = 'characters/' + name + '.hx';
+		var scriptFile:String = 'characters/' + name + ext;
 		#if MODS_ALLOWED
 		var replacePath:String = Paths.modFolders(scriptFile);
 		if(FileSystem.exists(replacePath))
@@ -859,6 +862,7 @@ class PlayState extends MusicBeatState
 				doPush = false;
 
 			if(doPush) initHScript(scriptFile);
+		}
 		}
 		#end
 

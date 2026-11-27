@@ -7,7 +7,7 @@ Fork de **Psych Engine 1.0.4** con más lenguajes de scripting, compatibilidad c
 | Lenguaje | Extensión | Librería |
 |---|---|---|
 | Lua | `.lua` | linc_luajit (Psych) |
-| HScript | `.hx` | hscript-iris (Psych) |
+| HScript | `.hx`, `.hscript` | hscript-iris (Psych). `.hscript` es lo mismo que `.hx` (como en otros engines) |
 | NXScript | `.nx`, `.nxs` | [nxscript 0.5.8](https://github.com/senioritaelizabeth/NxScript) |
 | RuleScript | `.rhx` | [rulescript 0.2.0](https://github.com/Kriptel/RuleScript) + hscript 2.6.0 |
 | hscript-plus | `.hsp` | [hscript-plus](https://github.com/DleanJeans/hscript-plus) (incluido en `source/flux/vendor/hsplus`) |
