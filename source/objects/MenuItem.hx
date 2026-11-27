@@ -12,6 +12,10 @@ class MenuItem extends FlxSprite
 		var vsliceTitle:String = flux.vslice.FluxVSliceWeeks.titleAssetFor(weekName); // título de un level de V-Slice
 		if(vsliceTitle != null) titleImage = vsliceTitle;
 		#end
+		#if FLUX_CODENAME
+		var codenameTitle:String = flux.codename.CodenameWeeks.titleAssetFor(weekName); // título de una semana de Codename
+		if(codenameTitle != null) titleImage = codenameTitle;
+		#end
 		loadGraphic(Paths.image(titleImage));
 		antialiasing = ClientPrefs.data.antialiasing;
 		//trace('Test added: ' + WeekData.getWeekNumber(weekNum) + ' (' + weekNum + ')');

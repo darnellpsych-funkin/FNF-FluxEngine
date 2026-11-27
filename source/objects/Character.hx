@@ -126,6 +126,9 @@ class Character extends FlxSprite
 		vsliceCurrentOffsets = [0, 0];
 		var vslice:Dynamic = null;
 		#end
+		#if FLUX_CODENAME
+		var codename:Dynamic = null;
+		#end
 
 		var path:String = Paths.getPath(characterPath, TEXT);
 		#if FLUX_VSLICE
@@ -134,7 +137,10 @@ class Character extends FlxSprite
 			vslice = flux.vslice.FluxVSliceCharacters.find(character);
 		if (vslice == null)
 		#end
-		#if MODS_ALLOWED
+		#if FLUX_CODENAME
+		// Flux Engine: o el de Codename (data/characters/<nombre>.xml)
+		if (!FileSystem.exists(path) && (codename = flux.codename.CodenameCharacters.find(character, isPlayer)) == null)
+		#elseif MODS_ALLOWED
 		if (!FileSystem.exists(path))
 		#else
 		if (!Assets.exists(path))
@@ -153,6 +159,11 @@ class Character extends FlxSprite
 				loadVSliceCharacter(vslice);
 			else
 			#end
+			#if FLUX_CODENAME
+			if (codename != null)
+				loadCharacterFile(codename.json);
+			else
+			#end
 			#if MODS_ALLOWED
 			loadCharacterFile(Json.parse(File.getContent(path)));
 			#else
@@ -167,6 +178,9 @@ class Character extends FlxSprite
 		skipDance = false;
 		hasMissAnimations = hasAnimation('singLEFTmiss') || hasAnimation('singDOWNmiss') || hasAnimation('singUPmiss') || hasAnimation('singRIGHTmiss');
 		recalculateDanceIdle();
+		#if FLUX_CODENAME
+		if (codename != null) flux.codename.CodenameCharacters.afterLoad(this, codename); // intervalo de baile y cámara de Codename
+		#end
 		#if FLUX_VSLICE
 		if (vsliceData != null)
 		{

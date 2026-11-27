@@ -142,6 +142,10 @@ class PlayState extends MusicBeatState
 	/** Flux Engine: escenario de un mod de V-Slice (data/stages/<id>.json), si la canción usa uno */
 	public var vsliceStage:flux.vslice.FluxVSliceStage = null;
 	#end
+	#if FLUX_CODENAME
+	/** Flux Engine: escenario de un mod de Codename (data/stages/<id>.xml), si la canción usa uno */
+	public var codenameStage:flux.codename.CodenameStage = null;
+	#end
 	public static var stageUI(default, set):String = "normal";
 	public static var uiPrefix:String = "";
 	public static var uiPostfix:String = "";
@@ -367,6 +371,13 @@ class PlayState extends MusicBeatState
 		vsliceStage = flux.vslice.FluxVSliceStage.load(curStage);
 		if (vsliceStage != null) stageData = vsliceStage.stageFile(SONG);
 		#end
+		#if FLUX_CODENAME
+		if (#if FLUX_VSLICE vsliceStage == null #else true #end)
+		{
+			codenameStage = flux.codename.CodenameStage.load(curStage); // escenario de Codename (data/stages/<id>.xml)
+			if (codenameStage != null) stageData = codenameStage.stageFile;
+		}
+		#end
 		defaultCamZoom = stageData.defaultZoom;
 
 		stageUI = "normal";
@@ -444,6 +455,14 @@ class PlayState extends MusicBeatState
 		flux.vslice.FluxVSliceCharacters.setupDeath(boyfriend);
 		if (vsliceStage != null)
 			vsliceStage.build(this); // props + personajes ordenados por zIndex
+		else
+		#end
+		#if FLUX_CODENAME
+		if (codenameStage != null)
+		{
+			flux.codename.CodenameCharacters.setupDeath(boyfriend);
+			codenameStage.build(this); // sprites + personajes en el orden del XML
+		}
 		else
 		#end
 		if(stageData.objects != null && stageData.objects.length > 0)
@@ -2397,7 +2416,8 @@ class PlayState extends MusicBeatState
 				FlxG.sound.play(Paths.sound(value1), flValue2);
 		}
 
-		#if FLUX_VSLICE flux.vslice.FluxVSliceEvents.trigger(this, eventName, value1, value2); #end // eventos de V-Slice (ZoomCamera, SetCameraBop, SetHealthIcon, SetTargetBopSpeed)
+		#if FLUX_VSLICE flux.vslice.FluxVSliceEvents.trigger(this, eventName, value1, value2); #end
+		#if FLUX_CODENAME flux.codename.CodenameEvents.trigger(this, eventName, value1, value2); #end // eventos de Codename (Camera Zoom, Camera Flash...) // eventos de V-Slice (ZoomCamera, SetCameraBop, SetHealthIcon, SetTargetBopSpeed)
 		stagesFunc(function(stage:BaseStage) stage.eventCalled(eventName, value1, value2, flValue1, flValue2, strumTime));
 		callOnScripts('onEvent', [eventName, value1, value2, strumTime]);
 	}
