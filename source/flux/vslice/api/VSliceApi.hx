@@ -9,6 +9,7 @@ import backend.Paths;
 import backend.WeekData;
 import flixel.FlxG;
 import flixel.sound.FlxSound;
+import flixel.util.FlxColor;
 import flixel.util.FlxSave;
 import flux.vslice.api.ScriptEvent;
 import flux.vslice.modules.FluxVSliceModules;
@@ -611,6 +612,76 @@ class VSPaths
 		if (name != null && name.length > 0)
 			Paths.setCurrentLevel(name);
 	}
+}
+
+/**
+ * FlxColor para los scripts .hxc: un script no puede usar un "abstract" de Haxe, así que
+ * `import flixel.util.FlxColor;` trae esta clase con los mismos colores y funciones
+ * (FlxColor.BLACK, FlxColor.fromRGB(...), FlxColor.interpolate(...)...).
+ */
+@:keep
+class VSFlxColor
+{
+	public static var TRANSPARENT(default, null):Int = FlxColor.TRANSPARENT;
+	public static var WHITE(default, null):Int = FlxColor.WHITE;
+	public static var GRAY(default, null):Int = FlxColor.GRAY;
+	public static var BLACK(default, null):Int = FlxColor.BLACK;
+	public static var GREEN(default, null):Int = FlxColor.GREEN;
+	public static var LIME(default, null):Int = FlxColor.LIME;
+	public static var YELLOW(default, null):Int = FlxColor.YELLOW;
+	public static var ORANGE(default, null):Int = FlxColor.ORANGE;
+	public static var RED(default, null):Int = FlxColor.RED;
+	public static var PURPLE(default, null):Int = FlxColor.PURPLE;
+	public static var BLUE(default, null):Int = FlxColor.BLUE;
+	public static var BROWN(default, null):Int = FlxColor.BROWN;
+	public static var PINK(default, null):Int = FlxColor.PINK;
+	public static var MAGENTA(default, null):Int = FlxColor.MAGENTA;
+	public static var CYAN(default, null):Int = FlxColor.CYAN;
+
+	public static function fromInt(value:Int):Int
+		return FlxColor.fromInt(value);
+
+	public static function fromRGB(red:Int, green:Int, blue:Int, alpha:Int = 255):Int
+		return FlxColor.fromRGB(red, green, blue, alpha);
+
+	public static function fromRGBFloat(red:Float, green:Float, blue:Float, alpha:Float = 1):Int
+		return FlxColor.fromRGBFloat(red, green, blue, alpha);
+
+	public static function fromCMYK(cyan:Float, magenta:Float, yellow:Float, black:Float, alpha:Float = 1):Int
+		return FlxColor.fromCMYK(cyan, magenta, yellow, black, alpha);
+
+	public static function fromHSB(hue:Float, saturation:Float, brightness:Float, alpha:Float = 1):Int
+		return FlxColor.fromHSB(hue, saturation, brightness, alpha);
+
+	public static function fromHSL(hue:Float, saturation:Float, lightness:Float, alpha:Float = 1):Int
+		return FlxColor.fromHSL(hue, saturation, lightness, alpha);
+
+	public static function fromString(str:String):Null<Int>
+	{
+		var color:Null<FlxColor> = FlxColor.fromString(str);
+		return color != null ? (color : Int) : null;
+	}
+
+	public static function interpolate(color1:Int, color2:Int, factor:Float = 0.5):Int
+		return FlxColor.interpolate(color1, color2, factor);
+
+	public static function gradient(color1:Int, color2:Int, steps:Int, ?ease:Float->Float):Array<Int>
+		return [for (color in FlxColor.gradient(color1, color2, steps, ease)) (color : Int)];
+
+	public static function multiply(lhs:Int, rhs:Int):Int
+		return FlxColor.multiply(lhs, rhs);
+
+	public static function add(lhs:Int, rhs:Int):Int
+		return FlxColor.add(lhs, rhs);
+
+	public static function subtract(lhs:Int, rhs:Int):Int
+		return FlxColor.subtract(lhs, rhs);
+
+	public static function toHexString(color:Int, alpha:Bool = true, prefix:Bool = true):String
+		return (color : FlxColor).toHexString(alpha, prefix);
+
+	public static function toWebString(color:Int):String
+		return (color : FlxColor).toWebString();
 }
 
 /** FlxTweenUtil de V-Slice: pausar y seguir los tweens de un objeto. */

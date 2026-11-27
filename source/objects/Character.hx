@@ -91,6 +91,11 @@ class Character extends FlxSprite
 	public var vsliceCurrentOffsets(default, null):Array<Float> = [0, 0];
 	#end
 
+	#if FLUX_DAVE_SCRIPTS
+	/** Flux Engine: el script de Dave Engine (scripts/characters/<id>.hxc) si el personaje vino de ahí */
+	public var daveScript:flux.dave.api.DaveCharacter = null;
+	#end
+
 	public function new(x:Float, y:Float, ?character:String = 'bf', ?isPlayer:Bool = false)
 	{
 		super(x, y);
@@ -131,11 +136,19 @@ class Character extends FlxSprite
 		#end
 
 		var path:String = Paths.getPath(characterPath, TEXT);
+		#if FLUX_DAVE_SCRIPTS
+		// Flux Engine: personaje de Dave Engine (data/characters/<id>.json + scripts/characters/<id>.hxc)
+		daveScript = null;
+		var dave:Dynamic = flux.dave.DaveCharacters.find(character, path);
+		#end
 		#if FLUX_VSLICE
 		// Flux Engine: si no hay personaje de Psych, se busca el de V-Slice (data/characters/<id>.json)
-		if (!#if MODS_ALLOWED FileSystem.exists(path) #else Assets.exists(path) #end)
+		if (#if FLUX_DAVE_SCRIPTS dave == null && #end !#if MODS_ALLOWED FileSystem.exists(path) #else Assets.exists(path) #end)
 			vslice = flux.vslice.FluxVSliceCharacters.find(character);
 		if (vslice == null)
+		#end
+		#if FLUX_DAVE_SCRIPTS
+		if (dave == null)
 		#end
 		#if FLUX_CODENAME
 		// Flux Engine: o el de Codename (data/characters/<nombre>.xml)
@@ -157,6 +170,11 @@ class Character extends FlxSprite
 			#if FLUX_VSLICE
 			if (vslice != null)
 				loadVSliceCharacter(vslice);
+			else
+			#end
+			#if FLUX_DAVE_SCRIPTS
+			if (dave != null)
+				loadDaveCharacter(dave);
 			else
 			#end
 			#if FLUX_CODENAME
@@ -181,6 +199,9 @@ class Character extends FlxSprite
 		#if FLUX_CODENAME
 		if (codename != null) flux.codename.CodenameCharacters.afterLoad(this, codename); // intervalo de baile y cámara de Codename
 		#end
+		#if FLUX_DAVE_SCRIPTS
+		if (daveScript != null) flux.dave.DaveCharacters.afterLoad(this); // danceSnap de Dave Engine
+		#end
 		#if FLUX_VSLICE
 		if (vsliceData != null)
 		{
@@ -192,6 +213,16 @@ class Character extends FlxSprite
 		#end
 		dance();
 	}
+
+	#if FLUX_DAVE_SCRIPTS
+	/** Flux Engine: carga un personaje de Dave Engine (su JSON y su script .hxc, ver flux.dave.DaveCharacters). */
+	function loadDaveCharacter(info:Dynamic):Void
+	{
+		isAnimateAtlas = false;
+		imageFile = '';
+		flux.dave.DaveCharacters.load(this, info);
+	}
+	#end
 
 	public function loadCharacterFile(json:Dynamic)
 	{
@@ -291,6 +322,9 @@ class Character extends FlxSprite
 	override function update(elapsed:Float)
 	{
 		if(isAnimateAtlas) atlas.update(elapsed);
+		#if FLUX_DAVE_SCRIPTS
+		if (daveScript != null) flux.dave.DaveCharacters.update(this, elapsed); // el update() del script de Dave Engine
+		#end
 
 		if(debugMode || (!isAnimateAtlas && animation.curAnim == null) || (isAnimateAtlas && (atlas.anim.curInstance == null || atlas.anim.curSymbol == null)))
 		{
@@ -413,6 +447,13 @@ class Character extends FlxSprite
 	{
 		if (!debugMode && !skipDance && !specialAnim)
 		{
+			#if FLUX_DAVE_SCRIPTS
+			if (daveScript != null)
+			{
+				flux.dave.DaveCharacters.dance(this); // cómo baila el personaje de Dave Engine (y su "-ease")
+				return;
+			}
+			#end
 			if(danceIdle)
 			{
 				danced = !danced;
@@ -434,6 +475,14 @@ class Character extends FlxSprite
 		{
 			// como V-Slice: "singLEFT-alt" que no existe -> "singLEFT"
 			AnimName = vsliceAnimationName(AnimName);
+			if (AnimName == null) return;
+		}
+		#end
+		#if FLUX_DAVE_SCRIPTS
+		if (daveScript != null)
+		{
+			// como Dave Engine: canDance / canSing y los sufijos altDanceSuffix / altSingSuffix
+			AnimName = flux.dave.DaveCharacters.animationName(this, AnimName);
 			if (AnimName == null) return;
 		}
 		#end
