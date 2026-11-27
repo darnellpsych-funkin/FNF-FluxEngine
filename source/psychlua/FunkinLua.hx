@@ -273,7 +273,7 @@ class FunkinLua {
 			}
 
 			#if HSCRIPT_ALLOWED
-			var hscriptPath:String = findScript(scriptFile, '.hx');
+			var hscriptPath:String = findScript(scriptFile, scriptFile.toLowerCase().endsWith('.hscript') ? '.hscript' : '.hx'); // Flux Engine: también .hscript
 			if(hscriptPath != null)
 			{
 				for (hscriptInstance in game.hscriptArray)
@@ -311,7 +311,7 @@ class FunkinLua {
 		});
 		Lua_helper.add_callback(lua, "addHScript", function(scriptFile:String, ?ignoreAlreadyRunning:Bool = false) {
 			#if HSCRIPT_ALLOWED
-			var scriptPath:String = findScript(scriptFile, '.hx');
+			var scriptPath:String = findScript(scriptFile, scriptFile.toLowerCase().endsWith('.hscript') ? '.hscript' : '.hx'); // Flux Engine: también .hscript
 			if(scriptPath != null)
 			{
 				if(!ignoreAlreadyRunning)
@@ -352,7 +352,7 @@ class FunkinLua {
 		});
 		Lua_helper.add_callback(lua, "removeHScript", function(scriptFile:String) {
 			#if HSCRIPT_ALLOWED
-			var scriptPath:String = findScript(scriptFile, '.hx');
+			var scriptPath:String = findScript(scriptFile, scriptFile.toLowerCase().endsWith('.hscript') ? '.hscript' : '.hx'); // Flux Engine: también .hscript
 			if(scriptPath != null)
 			{
 				var foundAny:Bool = false;
