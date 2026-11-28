@@ -113,13 +113,16 @@ Ejemplo: [`ejemplo.ss`](docs/flux-examples/ejemplo.ss).
 - **Varias funciones para el mismo evento**: `on('beatHit', función)` y `off('beatHit')`. También se llama la función `onBeatHit` del script si existe.
 - **`shared`**: datos que comparten todos los `.flux` y duran toda la partida (`shared.canciones = 3`).
 - **`wait(segundos, función)`, `every(segundos, función)`** (se repite hasta que la función devuelva `false`) y `color('#FF0066')`.
-- **La API de Lua de Psych** con los mismos nombres y argumentos: `makeLuaSprite`, `addLuaSprite`, `makeLuaText`, `setProperty`, `doTweenX`, `runTimer`, `playSound`, `cameraFlash`, `characterPlayAnim`... Donde va un tag también se puede pasar el objeto, y `onTweenCompleted`/`onTimerCompleted` llegan al script que los creó. Los tags son los mismos que usan los `.lua`.
-- **Todo el preset de los `.hxs`** (`makeText`, `tween`, `timer`, `switchState`, `importScript`...).
+- **`task.wait(segundos)` como en Luau**: dentro de una función espera ahí mismo, sin timers (también dentro de `if`, `switch`, `while` y `for`). Y `task.spawn`, `task.delay`, `task.defer` y `task.cancel`. Las esperas se pausan con el juego; en los scripts globales siguen aunque cambie el menú o la canción.
+- **`require('modules/algo')`**: carga otro `.flux` una sola vez y devuelve sus funciones (o lo que devuelva con `return`). También `importScript`, `loadstring`, `print`, `warn`, `typeof`, `tonumber`, `pcall`, `xpcall`, `error`, `assert`, `math` (`clamp`, `round`, `lerp`, `random`...), `os` y `tick()`.
+- **La API de Lua de Psych completa**, con los mismos nombres y argumentos: `makeLuaSprite`, `setProperty`, `doTweenX`, `runTimer`, `playSound`, shaders (`setSpriteShader`, `setShaderFloat`...), datos guardados (`initSaveData`...), archivos, grupos, mando, `startVideo`, `startDialogue`, `addLuaScript`, `callOnScripts`... Donde va un tag también se puede pasar el objeto, y `onTweenCompleted`/`onTimerCompleted` llegan al script que los creó. Los tags son los mismos que usan los `.lua`.
+- **Todo el preset de los `.hxs`** (`makeText`, `tween`, `timer`, `switchState`, `importScript`...), también en los módulos de `require`.
+- Arregla dos cosas del HScript de Psych: `i++` sobre una variable local no la cambiaba (un `while` con `i++` no terminaba nunca), y un error atrapado con `pcall` le rompía las variables a la función.
 - También sirve para menús (`states/<Menú>.flux`) y como script global (`.fluxg`). `#if FLUXSCRIPT` y `#if FLUX_ENGINE` funcionan.
 
 Desde Lua: `runFluxScript(código, ?función, ?argumentos)` y `runFluxFunction('fluxscript', función, argumentos)`.
 
-La lista completa está en el [README de FluxScript](https://github.com/darnellpsych-funkin/FluxScript). Ejemplos: [`ejemplo.flux`](docs/flux-examples/ejemplo.flux), [`estilo-lua.flux`](docs/flux-examples/estilo-lua.flux), [`states/MainMenuState.flux`](docs/flux-examples/states/MainMenuState.flux) y [`scripts/global/contador.flux`](docs/flux-examples/scripts/global/contador.flux).
+La lista completa está en el [README de FluxScript](https://github.com/darnellpsych-funkin/FluxScript) (Flux trae la versión 1.1). Ejemplos: [`ejemplo.flux`](docs/flux-examples/ejemplo.flux), [`estilo-lua.flux`](docs/flux-examples/estilo-lua.flux), [`estilo-luau.flux`](docs/flux-examples/estilo-luau.flux) (con el módulo [`modules/cuenta.flux`](docs/flux-examples/modules/cuenta.flux)), [`states/MainMenuState.flux`](docs/flux-examples/states/MainMenuState.flux) y [`scripts/global/contador.flux`](docs/flux-examples/scripts/global/contador.flux).
 
 ### ZS Script (`.zs`)
 

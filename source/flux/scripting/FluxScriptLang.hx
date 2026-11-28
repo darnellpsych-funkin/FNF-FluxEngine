@@ -10,8 +10,9 @@ import fluxscript.FluxScript as Runtime;
  *
  * Se escribe como un .hx de Psych y además tiene: clases sin `import`, los campos
  * del estado directo (`health = 2`), textos con variables ('Hola $nombre'),
- * `on('beatHit', función)`, `shared`, `wait`/`every`, la API de Lua de Psych
- * (makeLuaSprite, doTweenX, runTimer...) y el preset de los .hxs.
+ * `on('beatHit', función)`, `shared`, `wait`/`every`, lo de Luau (`task.wait`
+ * dentro de las funciones, `task.spawn`, `require`, `pcall`...), la API de Lua de
+ * Psych (makeLuaSprite, doTweenX, runTimer...) y el preset de los .hxs.
  */
 class FluxScriptLang extends FluxScript
 {
@@ -19,17 +20,28 @@ class FluxScriptLang extends FluxScript
 
 	static var definesReady:Bool = false;
 
-	public function new(origin:String, code:String, ?parentInstance:Dynamic)
+	public function new(origin:String, code:String, ?parentInstance:Dynamic, ?existing:Runtime)
 	{
 		super(origin, code);
 		language = 'FluxScript';
 		setupDefines();
 
+		if (existing != null)
+		{
+			// un módulo de require (FluxScript ya lo armó): solo se le pone lo de Flux
+			runtime = existing;
+			modFolder = existing.modFolder;
+			return;
+		}
 		runtime = new Runtime(code, origin, parentInstance);
 		runtime.onError = function(message:String) error(message);
 		runtime.onWarning = function(message:String) FluxScript.onWarning(this, message);
 		runtime.onClose = function() active = false;
 	}
+
+	/** Un FluxScriptLang para un FluxScript que ya existe (los módulos de require). */
+	public static function wrap(existing:Runtime):FluxScriptLang
+		return new FluxScriptLang(existing.name, null, existing.parent, existing);
 
 	/** Lo que se puede usar en `#if` dentro de un .flux (y el resolver de los `import`). */
 	static function setupDefines():Void
