@@ -15,6 +15,7 @@ Fork de **Psych Engine 1.0.4** con más lenguajes de scripting, compatibilidad c
 | Luau | `.luau` | [Luau](https://github.com/luau-lang/luau), el Lua de Roblox (incluido en `source/flux/vendor/luau`, se compila con el juego) |
 | SScript | `.ss` | [SScript 24.0.0](https://github.com/ThomasDarkson/SScript) (incluido en `source/flux/vendor/sscript`, se compila con el juego) |
 | FluxScript | `.flux` | [FluxScript](https://github.com/darnellpsych-funkin/FluxScript), el addon de HScript de Flux (incluido en `source/flux/vendor/fluxscript`) |
+| ZS Script | `.zs` | El transpilador de ZS a Lua de [ZS Engine](https://github.com/SuperHero2010/FNF-ZSEngine) (incluido en `source/flux/vendor/zsscript`): se corre como un `.lua` |
 | Globales | `.hxsg`, `.luaug`, `.ssg`, `.fluxg`... y `.luag` | Los mismos lenguajes, pero corren en todo el juego (ver abajo) |
 
 Los scripts nuevos se cargan en los mismos lugares que los `.hx`: `scripts/`, `data/<canción>/`, `stages/`, `characters/`, `custom_notetypes/` y `custom_events/`. Reciben los mismos callbacks (`onCreate`, `onCreatePost`, `onUpdate`, `onBeatHit`, `goodNoteHit`, ...) y las mismas variables (`game`, `FlxG`, `FlxSprite`, `FlxTween`, `PlayState`, `setVar`, `debugPrint`, `Function_Stop`, ...). Corren después de HScript y respetan `Function_StopHScript` / `Function_StopAll`. Para cambiar valores del juego usa `game.` (`game.health`, `game.combo`...).
@@ -26,6 +27,7 @@ Los scripts nuevos se cargan en los mismos lugares que los `.hx`: `scripts/`, `d
 - **Luau (`.luau`)**: Lua con los objetos del juego directo (`game.boyfriend.alpha = 0.5`), ver la sección de abajo.
 - **SScript (`.ss`)**: HScript que corre en su propia máquina virtual de C++ (rápido), ver la sección de abajo.
 - **FluxScript (`.flux`)**: nuestro propio lenguaje, el HScript de Psych con cosas extra, ver la sección de abajo.
+- **ZS Script (`.zs`)**: el lenguaje "natural" de ZS Engine, que se pasa a Lua. Ver la sección de abajo.
 
 ### HScript expandido (`.hxs`)
 
@@ -118,6 +120,26 @@ Ejemplo: [`ejemplo.ss`](docs/flux-examples/ejemplo.ss).
 Desde Lua: `runFluxScript(código, ?función, ?argumentos)` y `runFluxFunction('fluxscript', función, argumentos)`.
 
 La lista completa está en el [README de FluxScript](https://github.com/darnellpsych-funkin/FluxScript). Ejemplos: [`ejemplo.flux`](docs/flux-examples/ejemplo.flux), [`estilo-lua.flux`](docs/flux-examples/estilo-lua.flux), [`states/MainMenuState.flux`](docs/flux-examples/states/MainMenuState.flux) y [`scripts/global/contador.flux`](docs/flux-examples/scripts/global/contador.flux).
+
+### ZS Script (`.zs`)
+
+Los scripts de [ZS Engine](https://github.com/SuperHero2010/FNF-ZSEngine) (por SuperHero2010) funcionan como en ese engine: su transpilador convierte el `.zs` en Lua y Flux lo corre como un script de Lua de Psych. Tienen las mismas funciones y callbacks que los `.lua` y se cargan en los mismos lugares (`scripts/`, `data/<canción>/`, `stages/`, `characters/`, `custom_notetypes/` y `custom_events/`). `addLuaScript('scripts/x.zs')`, `isRunning`, `callScript` y `removeLuaScript` también los aceptan.
+
+```
+! ZS-LUA
+
+onCreate:
+	create sprite ‘bg’ path ‘stageback’ with position -600 and -200
+	addLuaSprite<‘bg’, false>
+	global <count> = 0
+
+onBeatHit:
+	global <count> = <count> + 1
+	if curBeat % 4 == 0 then
+		triggerEvent<‘Hey!’, ‘BF’, ‘0.6’>
+```
+
+Las reglas son las de ZS: comillas curvas (`‘ ’` o `“ ”`), los nombres propios entre `<>` (`<count>`), las funciones con `nombre<argumentos>`, bloques por sangría (sin `end`), `proceed` / `halt` en vez de `return Function_Continue` / `Function_Stop` y comentarios con `-/`. Si el script tiene un error, el mensaje del transpilador sale en la consola y en la pantalla. Para desactivarlos, comenta `FLUX_ZS` en `Project.xml`.
 
 ### Scripts de menús y scripts globales
 
