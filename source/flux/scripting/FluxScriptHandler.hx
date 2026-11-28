@@ -212,6 +212,11 @@ class FluxScriptHandler
 		if (script == null) return null;
 
 		script.modFolder = modFolder;
+		#if FLUXSCRIPT_ALLOWED
+		if (script is FluxScriptLang)
+			setupFluxScript(cast script, modFolder);
+		else
+		#end
 		preset(script);
 		#if HSCRIPT_IMPROVED_ALLOWED
 		if (script is FluxHScriptImproved) FluxHxsPreset.apply(script);
@@ -221,15 +226,6 @@ class FluxScriptHandler
 		#end
 		#if SSCRIPT_ALLOWED
 		if (script is FluxSScript) FluxHxsPreset.apply(script);
-		#end
-		#if FLUXSCRIPT_ALLOWED
-		if (script is FluxScriptLang)
-		{
-			FluxHxsPreset.apply(script);
-			var runtime:fluxscript.FluxScript = (cast script : FluxScriptLang).runtime;
-			runtime.modFolder = modFolder;
-			fluxscript.psych.FluxPsych.apply(runtime); // la API de Lua de Psych (makeLuaSprite, doTweenX...)
-		}
 		#end
 		if (extraVars != null)
 			for (name => value in extraVars)
@@ -242,6 +238,29 @@ class FluxScriptHandler
 		}
 		return script;
 	}
+
+	/** Si se están creando los scripts globales (sus task.wait siguen al cambiar de estado). */
+	public static var creatingGlobal:Bool = false;
+
+	#if FLUXSCRIPT_ALLOWED
+	/**
+	 * Un .flux: el preset de Flux y el de los .hxs, y después la API de Lua de Psych
+	 * (FluxPsych). Lo de Flux queda anotado en el FluxScript, así los módulos de
+	 * require('...') también lo tienen.
+	 */
+	static function setupFluxScript(script:FluxScriptLang, modFolder:String):Void
+	{
+		var runtime:fluxscript.FluxScript = script.runtime;
+		runtime.modFolder = modFolder;
+		runtime.persistent = creatingGlobal;
+		runtime.usePreset('FluxEngine', function(target:fluxscript.FluxScript) {
+			var wrapper:FluxScript = target == runtime ? script : FluxScriptLang.wrap(target);
+			preset(wrapper);
+			FluxHxsPreset.apply(wrapper);
+		});
+		fluxscript.psych.FluxPsych.apply(runtime); // la API de Lua de Psych (makeLuaSprite, doTweenX...)
+	}
+	#end
 
 	/** Las mismas clases y funciones que HScript.preset() de Psych */
 	public static function preset(script:FluxScript)

@@ -179,7 +179,19 @@ class FluxStateScripts
 
 		for (file in files)
 		{
-			var script:FluxScript = FluxScriptHandler.isGlobalScript(file) ? FluxScriptHandler.createGlobal(file) : FluxScriptHandler.create(file);
+			// los .flux globales: sus task.wait y task.delay siguen al cambiar de estado
+			var script:FluxScript = null;
+			FluxScriptHandler.creatingGlobal = true;
+			try
+			{
+				script = FluxScriptHandler.isGlobalScript(file) ? FluxScriptHandler.createGlobal(file) : FluxScriptHandler.create(file);
+			}
+			catch (e:Dynamic)
+			{
+				FluxScriptHandler.creatingGlobal = false;
+				throw e;
+			}
+			FluxScriptHandler.creatingGlobal = false;
 			if (script == null)
 				continue;
 			script.setParentInstance(null); // no pertenece a ningún estado
