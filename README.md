@@ -330,7 +330,9 @@ Para desactivarlo, comenta `FLUX_CODENAME` en `Project.xml`.
 
 ## Mods de Dave Engine (VS Dave and Bambi Volume 1)
 
-Flux carga mods hechos para [Dave Engine](https://github.com/T5mpler/VsDnB-Volume1) (Polymod): copia la carpeta del mod a `mods/` (lo que el mod tiene en `shared/` también se encuentra). Los mods de fans usan los personajes y escenarios de VsDnB, así que también hace falta VsDnB Volume 1 como mod.
+Flux carga mods hechos para [Dave Engine](https://github.com/T5mpler/VsDnB-Volume1) (Polymod): copia la carpeta del mod a `mods/` (lo que el mod tiene en `shared/` también se encuentra).
+
+Los mods de fans usan los personajes y escenarios de VsDnB (`bf`, `gf`, `dave`...), así que también hace falta **VsDnB Volume 1 como mod**: copia lo que hay en `assets/preload/` del juego a `mods/VsDnB/`, `assets/shared/` a `mods/VsDnB/shared/` y `assets/songs/` a `mods/VsDnB/songs/`. Como Polymod, Flux busca los personajes, offsets, escenarios e imágenes de los scripts de Dave en todos los mods activos, así que el mod de fans encuentra el `bf` de VsDnB aunque estén en carpetas distintas. Para que también aparezcan los íconos de VsDnB en las canciones de otros mods, pon `"runsGlobally": true` en el `pack.json` de `mods/VsDnB/`. Probado con el mod de fans **3D Power** (WuffGaming).
 
 - **Canciones**: `data/songs/<id>/<id>-metadata.json` y `<id>-chart.json`, con el audio en `songs/<id>/Inst.ogg` y `Voices.ogg`. Las notas de dirección 4-7 van del otro lado, como en Dave Engine, y los cambios de BPM (`timeChanges`) también pasan.
 - **Variaciones**: cada `<id>-chart-<variación>.json` es una dificultad más (la normal es el chart por defecto).
@@ -338,8 +340,9 @@ Flux carga mods hechos para [Dave Engine](https://github.com/T5mpler/VsDnB-Volum
 - **Personajes**: `data/characters/<id>.json` + `scripts/characters/<id>.hxc` (`class X extends Character`) + los offsets de `data/offsets/<archivo>.txt` (el del oponente o el del jugador según para dónde mire). El script carga el sprite en `load()` y puede cambiar `update()`, `onCreate()`, `playDanceAnimation()`... Funcionan `skins` (la GF de cada jugador con `gfSkin` y el game over con `deathSkin`), `danceTypes = ['alternate']`, `altDanceSuffix` / `altSingSuffix`, `canDance` / `canSing`, `addCharAtlas`, las animaciones `-ease` y `-loop`, la escala, `globalOffset` y `cameraOffsets`. Si el personaje mira al revés (`nativelyPlayable`), LEFT y RIGHT se dan vuelta como en Dave.
 - **Escenarios**: `data/stages/<id>.json` (zoom, y posición, scroll, zIndex y cámara de cada personaje) + `scripts/stages/<id>.hxc` (`class X extends Stage`) con sus `BGSprite` y `add()`. Los props y los personajes se ordenan por zIndex, y `PlayState.instance.gfOverride` cambia la GF. Los scripts reciben `onCreatePost`, `onUpdate`, `onBeatHit`, `onStepHit`, `onCountdownTick`, `onSongStart`, `onPlayerNoteHit`, `onOpponentNoteHit`, `onNoteMiss`, `onGhostNoteMiss`, `onPause`, `onResume`, `onGameOver`, `onCharacterAdd`...
 - **Game over**: el personaje de muerte del jugador y, con `GameOverSubstate.deathSuffix` / `musicSuffix`, el sonido (`sounds/death/fnf_loss_sfx-<sufijo>`) y la música (`music/gameOver/gameOver-<sufijo>`).
+- **Íconos**: los de Dave (`images/iconGrid/<ícono>.png`) se usan si no hay uno de Psych con ese nombre.
 - En las canciones de Dave sus personajes y escenarios van antes que los del juego base de Psych con el mismo nombre (`bf`, `gf`, `stage`, `school`...), porque se ubican distinto. Un personaje o escenario de Psych que esté en un mod sigue ganando.
-- Todavía no: los módulos (`scripts/modules/`), los diálogos, `VoidBGSprite` con su shader y lo que cambian los scripts en la interfaz (barra de vida, tiempo, puntaje).
+- Todavía no: los módulos (`scripts/modules/`, como los `SongModule` que cambian de personaje a mitad de la canción o ponen los créditos), los textos de `_append/locale/`, los diálogos, `VoidBGSprite` con su shader y lo que cambian los scripts en la interfaz (barra de vida, tiempo, puntaje).
 
 Para desactivarlo, comenta `FLUX_DAVE` en `Project.xml` (o `FLUX_DAVE_SCRIPTS` para dejar solo las canciones).
 

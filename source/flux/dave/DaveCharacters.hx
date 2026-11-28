@@ -59,14 +59,14 @@ class DaveCharacters
 	{
 		if (id == null || id.length == 0)
 			return null;
-		var data:Dynamic = FluxVSliceAssets.readJson(FluxVSliceAssets.findData('data/characters/$id.json'));
+		var data:Dynamic = FluxVSliceAssets.readJson(DaveScripts.findFile('data/characters/$id.json', DaveScripts.characterClasses.get(id)));
 		return DaveData.isCharacter(data) ? data : null;
 	}
 
-	/** data/offsets/<nombre>.txt */
-	public static function readOffsets(name:String):Map<String, Array<Float>>
+	/** data/offsets/<nombre>.txt (`className`: la clase del personaje, para buscar también en su mod). */
+	public static function readOffsets(name:String, ?className:String):Map<String, Array<Float>>
 	{
-		var path:String = FluxVSliceAssets.findData('data/offsets/$name.txt');
+		var path:String = DaveScripts.findFile('data/offsets/$name.txt', className);
 		if (path == null)
 			return new Map<String, Array<Float>>();
 		try

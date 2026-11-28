@@ -3,6 +3,7 @@ package flux.dave;
 #if FLUX_DAVE_SCRIPTS
 import flux.dave.api.DaveCharacter;
 import flux.dave.api.DaveStage;
+import flux.vslice.FluxVSliceAssets;
 import flux.vslice.api.ScriptEvent;
 import flux.vslice.modules.FluxVSliceModules;
 
@@ -24,18 +25,51 @@ class DaveScripts
 	/** Clase -> archivo (para los errores). */
 	static var files:Map<String, String> = new Map<String, String>();
 
+	/** Clase -> mod de su .hxc. */
+	static var classMods:Map<String, String> = new Map<String, String>();
+
 	public static function clear():Void
 	{
 		characterClasses = new Map<String, String>();
 		stageClasses = new Map<String, String>();
 		files = new Map<String, String>();
+		classMods = new Map<String, String>();
+	}
+
+	/**
+	 * Un archivo de los mods de Dave (data/characters/x.json, data/offsets/x.txt...) como lo
+	 * ve Polymod: del mod actual o los globales, del mod del script, o de cualquier mod activo
+	 * (los mods de fans usan los personajes del juego base, que está en otro mod).
+	 */
+	public static function findFile(file:String, ?className:String):String
+	{
+		var path:String = FluxVSliceAssets.findData(file);
+		if (path != null)
+			return path;
+		#if MODS_ALLOWED
+		var mods:Array<String> = [];
+		var own:String = className != null ? classMods.get(className) : null;
+		if (own != null)
+			mods.push(own);
+		for (mod in FluxVSliceModules.enabledMods)
+			if (!mods.contains(mod))
+				mods.push(mod);
+		for (mod in mods)
+			for (folder in ['', 'shared/'])
+			{
+				var modded:String = Paths.mods('$mod/$folder$file');
+				if (FileSystem.exists(modded))
+					return modded;
+			}
+		#end
+		return null;
 	}
 
 	/**
 	 * Guarda la clase si es de Dave (personaje o escenario). Devuelve false si no lo es.
 	 * `superId`: el primer texto del `super(...)` del constructor.
 	 */
-	public static function register(name:String, superName:String, superId:String, file:String):Bool
+	public static function register(name:String, superName:String, superId:String, file:String, ?mod:String):Bool
 	{
 		var map:Map<String, String> = switch (superName)
 		{
@@ -50,6 +84,8 @@ class DaveScripts
 			trace('[Dave Engine] ${map.get(id)} y $name son el mismo "$id"; se usa $name.');
 		map.set(id, name);
 		files.set(name, file);
+		if (mod != null)
+			classMods.set(name, mod);
 		return true;
 	}
 
