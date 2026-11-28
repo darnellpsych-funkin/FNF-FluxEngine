@@ -113,6 +113,13 @@ class PlayState extends MusicBeatState
 	public var fluxScriptArray:Array<FluxScript> = [];
 	#end
 
+	/** Flux Engine: ghost tapping que pide un script (game.ghostTapping de Dave Engine); null = el de las opciones. */
+	public var ghostTappingOverride:Null<Bool> = null;
+
+	/** Flux Engine: si hay ghost tapping (el de las opciones o el que pidió un script). */
+	public function ghostTappingEnabled():Bool
+		return ghostTappingOverride != null ? ghostTappingOverride : ClientPrefs.data.ghostTapping;
+
 	#if FLUX_VSLICE_SCRIPTS
 	/** Flux (módulos .hxc de V-Slice): si es false no se guarda el puntaje (currentSong.validScore / isBotPlayMode). */
 	public var fluxValidScore:Bool = true;
@@ -385,6 +392,9 @@ class PlayState extends MusicBeatState
 		#if FLUX_DAVE_SCRIPTS
 		// en las canciones de Dave Engine sus personajes y escenarios van antes que los del juego base (bf, gf, stage...)
 		flux.dave.DaveCharacters.preferDave = flux.dave.FluxDave.isDaveSong(SONG);
+		flux.dave.FluxDaveStage.resetSong();
+		// los SongModule de la canción (scripts/modules/), antes del escenario y los personajes como en Dave
+		flux.dave.DaveModules.startSong(flux.dave.DaveCharacters.preferDave ? (Song.loadedSongName != null ? Song.loadedSongName : SONG.song) : null);
 		if (#if FLUX_VSLICE vsliceStage == null && #end #if FLUX_CODENAME codenameStage == null && #end true)
 		{
 			daveStage = flux.dave.FluxDaveStage.load(curStage); // escenario de Dave Engine (data/stages/<id>.json + scripts/stages/<id>.hxc)
@@ -468,6 +478,7 @@ class PlayState extends MusicBeatState
 		#if FLUX_DAVE_SCRIPTS
 		flux.dave.DaveCharacters.setupDeath(boyfriend); // el deathSkin del jugador de Dave Engine
 		flux.dave.DaveCharacters.fixGirlfriend(this); // la GF de Dave: la del escenario (gfOverride) o el gfSkin del jugador
+		flux.dave.DaveCharacters.applyOverrides(this); // dadOverride / bfOverride de los SongModule de Dave
 		#end
 		#if FLUX_VSLICE
 		flux.vslice.FluxVSliceCharacters.setupDeath(boyfriend);
@@ -503,6 +514,7 @@ class PlayState extends MusicBeatState
 		}
 		#if FLUX_DAVE_SCRIPTS
 		if (daveStage == null) daveStage = flux.dave.FluxDaveStage.forCharacters(this); // eventos para los personajes de Dave Engine
+		flux.dave.DaveModules.DavePreloader.flush(this); // los Preloader.cacheCharacter de los SongModule (ya hay personajes)
 		#end
 		
 		#if (LUA_ALLOWED || HSCRIPT_ALLOWED || FLUX_SCRIPTS_ALLOWED)
@@ -727,7 +739,7 @@ class PlayState extends MusicBeatState
 
 		//PRECACHING THINGS THAT GET USED FREQUENTLY TO AVOID LAGSPIKES
 		if(ClientPrefs.data.hitsoundVolume > 0) Paths.sound('hitsound');
-		if(!ClientPrefs.data.ghostTapping) for (i in 1...4) Paths.sound('missnote$i');
+		if(!ghostTappingEnabled()) for (i in 1...4) Paths.sound('missnote$i'); // Flux Engine: ghostTappingEnabled()
 		Paths.image('alphabet');
 
 		if (PauseSubState.songName != null)
@@ -1907,8 +1919,11 @@ class PlayState extends MusicBeatState
 
 		if (camZooming)
 		{
-			FlxG.camera.zoom = FlxMath.lerp(defaultCamZoom, FlxG.camera.zoom, Math.exp(-elapsed * 3.125 * camZoomingDecay * playbackRate));
-			camHUD.zoom = FlxMath.lerp(1, camHUD.zoom, Math.exp(-elapsed * 3.125 * camZoomingDecay * playbackRate));
+			// Flux Engine: canWorldZoom de Dave (game.camGameZoom / camHUDZoom)
+			if (#if FLUX_DAVE_SCRIPTS flux.dave.DaveAdapter.worldZoom(this, true) #else true #end)
+				FlxG.camera.zoom = FlxMath.lerp(defaultCamZoom, FlxG.camera.zoom, Math.exp(-elapsed * 3.125 * camZoomingDecay * playbackRate));
+			if (#if FLUX_DAVE_SCRIPTS flux.dave.DaveAdapter.worldZoom(this, false) #else true #end)
+				camHUD.zoom = FlxMath.lerp(1, camHUD.zoom, Math.exp(-elapsed * 3.125 * camZoomingDecay * playbackRate));
 		}
 
 		FlxG.watch.addQuick("secShit", curSection);
@@ -2488,6 +2503,7 @@ class PlayState extends MusicBeatState
 			callOnScripts('onMoveCamera', ['dad']);
 		else
 			callOnScripts('onMoveCamera', ['boyfriend']);
+		#if FLUX_DAVE_SCRIPTS flux.dave.FluxDaveStage.cameraMoved(isDad, true); #end // Flux Engine: onCameraMoveSection de Dave
 	}
 	
 	public function moveCameraToGirlfriend()
@@ -2526,6 +2542,7 @@ class PlayState extends MusicBeatState
 				});
 			}
 		}
+		#if FLUX_DAVE_SCRIPTS flux.dave.FluxDaveStage.cameraMoved(isDad, false); #end // Flux Engine: onCameraMove de Dave
 	}
 
 	public function tweenCamIn() {
@@ -2914,7 +2931,7 @@ class PlayState extends MusicBeatState
 		}
 		else
 		{
-			if (ClientPrefs.data.ghostTapping)
+			if (ghostTappingEnabled()) // Flux Engine: también el que pide un script
 				callOnScripts('onGhostTap', [key]);
 			else
 				noteMissPress(key);
@@ -3056,7 +3073,7 @@ class PlayState extends MusicBeatState
 
 	function noteMissPress(direction:Int = 1):Void //You pressed a key when there was no notes to press for this key
 	{
-		if(ClientPrefs.data.ghostTapping) return; //fuck it
+		if(ghostTappingEnabled()) return; //fuck it // Flux Engine: ghostTappingEnabled()
 		#if FLUX_VSLICE_SCRIPTS
 		if(!FluxVSliceModules.onGhostMiss(this, direction)) return;
 		#end
@@ -3467,7 +3484,7 @@ class PlayState extends MusicBeatState
 			if (generatedMusic && !endingSong && !isCameraOnForcedPos)
 				moveCameraSection();
 
-			if (camZooming && FlxG.camera.zoom < 1.35 && ClientPrefs.data.camZooms)
+			if (camZooming && FlxG.camera.zoom < 1.35 && ClientPrefs.data.camZooms #if FLUX_DAVE_SCRIPTS && !flux.dave.DaveAdapter.handlesZoomBop(this) #end) // Flux Engine: o el de Dave (game.camGameZoom)
 			{
 				FlxG.camera.zoom += 0.015 * camZoomingMult;
 				camHUD.zoom += 0.03 * camZoomingMult;

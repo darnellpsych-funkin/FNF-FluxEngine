@@ -149,6 +149,13 @@ class FluxVSliceModules
 		var loadedEvents:Array<String> = [];
 		var loadedDave:Array<String> = [];
 		var ignored:Array<String> = [];
+		#if FLUX_DAVE_SCRIPTS
+		// los mods de Dave Engine: tienen clases que solo existen en Dave (Character, SongModule...)
+		var daveMods:Map<String, Bool> = new Map<String, Bool>();
+		for (name in classOrder)
+			if (flux.dave.DaveScripts.isDaveOnlyClass(classes.get(name).superName))
+				daveMods.set(classes.get(name).mod, true);
+		#end
 		for (name in classOrder)
 		{
 			var info:VSliceClassInfo = classes.get(name);
@@ -191,10 +198,11 @@ class FluxVSliceModules
 				continue;
 			}
 			#if FLUX_DAVE_SCRIPTS
-			// personajes y escenarios de Dave Engine: se crean cuando la canción los usa
-			if (flux.dave.DaveScripts.register(info.name, info.superName, info.superId, info.file, info.mod))
+			// personajes, escenarios y módulos de Dave Engine (se crean cuando la canción los usa)
+			if (flux.dave.DaveScripts.register(info.name, info.superName, info.superId, info.file, info.mod, daveMods.exists(info.mod)))
 			{
-				loadedDave.push('${info.superId != null ? info.superId : info.name} (${info.name}) [${info.mod}]');
+				if (!info.superName.endsWith('Module'))
+					loadedDave.push('${info.superId != null ? info.superId : info.name} (${info.name}) [${info.mod}]');
 				continue;
 			}
 			#end
@@ -229,6 +237,11 @@ class FluxVSliceModules
 			log('Eventos de V-Slice cargados: ' + loadedEvents.join(', '));
 		if (loadedDave.length > 0)
 			log('Personajes y escenarios de Dave Engine: ' + loadedDave.join(', '));
+		#if FLUX_DAVE_SCRIPTS
+		var daveModules:Array<String> = flux.dave.DaveModules.load(); // los globales se crean ya; los SongModule, en su canción
+		if (daveModules.length > 0)
+			log('Módulos de Dave Engine: ' + daveModules.join(', '));
+		#end
 		if (ignored.length > 0)
 			log('Clases que Flux todavía no usa (por ahora módulos, tipos de nota, eventos y lo de Dave Engine): ' + ignored.join(', '));
 
@@ -636,11 +649,18 @@ class FluxVSliceModules
 	/** Devuelve false si un módulo canceló el final de la canción. */
 	public static function onSongEnd(game:PlayState):Bool
 	{
-		if (!hasModules())
-			return true;
-		var event:ScriptEvent = new ScriptEvent(ScriptEventType.SONG_END, true);
-		callEvent(event);
-		return !event.eventCanceled;
+		if (hasModules())
+		{
+			var event:ScriptEvent = new ScriptEvent(ScriptEventType.SONG_END, true);
+			callEvent(event);
+			if (event.eventCanceled)
+				return false;
+		}
+		#if FLUX_DAVE_SCRIPTS
+		return flux.dave.FluxDaveStage.cancellable('onSongEnd', 'song_end'); // módulos y escenario de Dave Engine
+		#else
+		return true;
+		#end
 	}
 
 	public static function onNoteIncoming(game:PlayState, note:Note):Void
@@ -799,11 +819,18 @@ class FluxVSliceModules
 	/** Devuelve false si un módulo canceló la muerte. */
 	public static function onGameOver(game:PlayState):Bool
 	{
-		if (!hasModules())
-			return true;
-		var event:ScriptEvent = new ScriptEvent(ScriptEventType.GAME_OVER, true);
-		callEvent(event);
-		return !event.eventCanceled;
+		if (hasModules())
+		{
+			var event:ScriptEvent = new ScriptEvent(ScriptEventType.GAME_OVER, true);
+			callEvent(event);
+			if (event.eventCanceled)
+				return false;
+		}
+		#if FLUX_DAVE_SCRIPTS
+		return flux.dave.FluxDaveStage.gameOver(game); // módulos, escenario y personajes de Dave Engine
+		#else
+		return true;
+		#end
 	}
 
 	// ----- Mensajes -----

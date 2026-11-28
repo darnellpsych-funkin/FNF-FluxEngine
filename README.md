@@ -246,7 +246,7 @@ Los nombres de V-Slice se traducen a Psych. Por ejemplo, `PlayState.instance` es
 Probado con el botplay de snezhok174 y Kai0903: la opción "Enable Botplay" aparece en la pausa, el bot pega todas las notas (también los sustains), no pega las notas de daño y, como en V-Slice, la puntuación no se guarda si usaste el bot. Su esquive automático para los mods de QT se probó con un módulo de prueba.
 
 Límites por ahora:
-- Se usan los módulos, los tipos de nota y los eventos (y los personajes y escenarios de Dave Engine, ver abajo). Las clases de canciones, escenarios y personajes de V-Slice (`extends Song`, `Stage`, `BaseCharacter`...) todavía se ignoran con un aviso en la consola.
+- Se usan los módulos, los tipos de nota y los eventos (y los personajes, escenarios y módulos de Dave Engine, ver abajo). Las clases de canciones, escenarios y personajes de V-Slice (`extends Song`, `Stage`, `BaseCharacter`...) todavía se ignoran con un aviso en la consola.
 - Lo que Flux todavía no tiene (por ejemplo el menú de opciones de V-Slice, `OptionsState`/`PreferencesMenu`) no rompe el módulo: el `.hxc` carga igual, la consola dice qué falta y esas partes no hacen nada. Por eso la página de opciones del botplay no aparece.
 - Los errores de un módulo salen en la consola y, si estás jugando, en pantalla, con el archivo y la línea. El mismo error se muestra 3 veces como máximo.
 
@@ -342,10 +342,25 @@ Los mods de fans usan los personajes y escenarios de VsDnB (`bf`, `gf`, `dave`..
 - **Freeplay**: cada mod tiene su semana "<mod> (Dave Engine)" con sus canciones, y el ícono y el color del oponente.
 - **Personajes**: `data/characters/<id>.json` + `scripts/characters/<id>.hxc` (`class X extends Character`) + los offsets de `data/offsets/<archivo>.txt` (el del oponente o el del jugador según para dónde mire). El script carga el sprite en `load()` y puede cambiar `update()`, `onCreate()`, `playDanceAnimation()`... Funcionan `skins` (la GF de cada jugador con `gfSkin` y el game over con `deathSkin`), `danceTypes = ['alternate']`, `altDanceSuffix` / `altSingSuffix`, `canDance` / `canSing`, `addCharAtlas`, las animaciones `-ease` y `-loop`, la escala, `globalOffset` y `cameraOffsets`. Si el personaje mira al revés (`nativelyPlayable`), LEFT y RIGHT se dan vuelta como en Dave.
 - **Escenarios**: `data/stages/<id>.json` (zoom, y posición, scroll, zIndex y cámara de cada personaje) + `scripts/stages/<id>.hxc` (`class X extends Stage`) con sus `BGSprite` y `add()`. Los props y los personajes se ordenan por zIndex, y `PlayState.instance.gfOverride` cambia la GF. Los scripts reciben `onCreatePost`, `onUpdate`, `onBeatHit`, `onStepHit`, `onCountdownTick`, `onSongStart`, `onPlayerNoteHit`, `onOpponentNoteHit`, `onNoteMiss`, `onGhostNoteMiss`, `onPause`, `onResume`, `onGameOver`, `onCharacterAdd`...
+- **Módulos** (`scripts/modules/`):
+  - `class X extends SongModule` con `super('id', prioridad, 'cancion')` (o `'cancion', 'variacion'`) corre solo en esa canción. Se crea uno nuevo cada vez que empieza, antes del escenario y los personajes, como en Dave.
+  - `class X extends Module` es global: recibe `onUpdate`, `onStateChange` y `onStateChangePost` en todos los menús, y los eventos de las canciones de Dave.
+  - Los eventos van en el orden de Dave: los módulos globales, los de la canción (por prioridad), el escenario y los personajes. Cancelar `onSongEnd` o `onGameOver` hace que Flux no siga (el script se encarga).
+- **Lo del PlayState de Dave** para los scripts:
+  - Personajes: `game.switchDad` / `switchBF` / `switchGF` (con `reposition`), `Preloader.cacheCharacter` (los deja listos y ocultos, aunque se llame en `onCreate`), y `dadOverride` / `bfOverride`.
+  - Juego: `ghostTapping` (forzarlo solo en esa canción) y `startCallback` / `endCallback`.
+  - Cámara: `camGameZoom` / `camHUDZoom` (`timeSnap`, `zoomValue`, `canZoom`, `canWorldZoom`, `useSteps`), `crazyZooming`, `forceFocusOnChar`, `focusOnDadGlobal`, `ZoomCam` y `onCameraMove` / `onCameraMoveSection`.
+  - Interfaz: `iconP1.char` / `iconP2.char`, `healthBar.updateColors(...)` y `healthBar.bar.createFilledBar(...)`, `timer` (la barra de tiempo de Psych), `dadStrums` / `playerStrums` (`strums`, `forEachStrum`, `forEachNote`) y `makeInvisibleNotes`. `scoreDisplay`, `missesDisplay` y `accuracyDisplay` son el texto del puntaje de Psych (allí va todo junto).
+  - Utilidades: `SoundController`, `RuntimeShader`, `PlayStatePlaylist`, `Preferences`, `Cursor`, `SongModuleHandler` y `ModuleHandler`.
+- **Textos** (`LanguageManager.getTextString('clave')`): las líneas `clave==texto` de `locale/<idioma>/textList.txt` de todos los mods activos, más los `_append/locale/...` (así un mod de fans agrega sus créditos). El idioma es el de las opciones de Psych (si el mod no lo tiene, uno del mismo idioma, como `es-US` para `es-ES`), y lo que falta sale del inglés.
+- **VoidBGSprite**: el fondo que se ondula de las canciones 3D, con el shader `shaders/glitchEffect.frag` del mod o uno igual de Flux si el mod no lo trae. Con los shaders apagados en las opciones queda la imagen sola.
 - **Game over**: el personaje de muerte del jugador y, con `GameOverSubstate.deathSuffix` / `musicSuffix`, el sonido (`sounds/death/fnf_loss_sfx-<sufijo>`) y la música (`music/gameOver/gameOver-<sufijo>`).
 - **Íconos**: los de Dave (`images/iconGrid/<ícono>.png`) se usan si no hay uno de Psych con ese nombre.
 - En las canciones de Dave sus personajes y escenarios van antes que los del juego base de Psych con el mismo nombre (`bf`, `gf`, `stage`, `school`...), porque se ubican distinto. Un personaje o escenario de Psych que esté en un mod sigue ganando.
-- Todavía no: los módulos (`scripts/modules/`, como los `SongModule` que cambian de personaje a mitad de la canción o ponen los créditos), los textos de `_append/locale/`, los diálogos, `VoidBGSprite` con su shader y lo que cambian los scripts en la interfaz (barra de vida, tiempo, puntaje).
+- Todavía no:
+  - Los diálogos: `beginStartDialogue` y `endSongDialogue` siguen directo.
+  - Cambiar de escenario en la canción (`loadStage` / `removeStage`).
+  - El Freeplay y el menú de historia de Dave: los módulos del Freeplay cargan pero no hacen nada.
 
 Para desactivarlo, comenta `FLUX_DAVE` en `Project.xml` (o `FLUX_DAVE_SCRIPTS` para dejar solo las canciones).
 

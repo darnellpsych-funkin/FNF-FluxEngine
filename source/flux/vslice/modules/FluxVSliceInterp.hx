@@ -98,6 +98,15 @@ class FluxVSliceInterp extends FluxRuleScriptInterp
 	{
 		if (o != null && o != this)
 		{
+			#if FLUX_DAVE_SCRIPTS
+			if (dave)
+			{
+				// lo que el PlayState de Dave tiene y el de Psych no (switchDad, ghostTapping, dadStrums...)
+				var daveValue:Dynamic = flux.dave.DaveAdapter.getField(o, f);
+				if (daveValue != VSliceAdapter.UNHANDLED)
+					return daveValue;
+			}
+			#end
 			var value:Dynamic = VSliceAdapter.getField(o, f);
 			if (value != VSliceAdapter.UNHANDLED)
 				return value;
@@ -107,6 +116,10 @@ class FluxVSliceInterp extends FluxRuleScriptInterp
 
 	override function set(o:Dynamic, f:String, v:Dynamic):Dynamic
 	{
+		#if FLUX_DAVE_SCRIPTS
+		if (dave && o != null && o != this && flux.dave.DaveAdapter.setField(o, f, v))
+			return v;
+		#end
 		if (o != null && o != this && VSliceAdapter.setField(o, f, v))
 			return v;
 		if (o == VSMissing)

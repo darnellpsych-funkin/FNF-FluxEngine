@@ -12,7 +12,8 @@ import flux.vslice.modules.FluxVSliceModules;
  *
  * FluxVSliceModules lee todos los .hxc y nos pasa las clases que hacen
  * `extends Character` (personajes) o `extends Stage` (escenarios); acá se
- * guarda qué clase es cada id (el `super('dave')` del constructor).
+ * guarda qué clase es cada id (el `super('dave')` del constructor). Los
+ * `extends SongModule` y los `extends Module` de los mods de Dave van a DaveModules.
  */
 class DaveScripts
 {
@@ -30,6 +31,7 @@ class DaveScripts
 
 	public static function clear():Void
 	{
+		DaveModules.clear();
 		characterClasses = new Map<String, String>();
 		stageClasses = new Map<String, String>();
 		files = new Map<String, String>();
@@ -65,12 +67,36 @@ class DaveScripts
 		return null;
 	}
 
-	/**
-	 * Guarda la clase si es de Dave (personaje o escenario). Devuelve false si no lo es.
-	 * `superId`: el primer texto del `super(...)` del constructor.
-	 */
-	public static function register(name:String, superName:String, superId:String, file:String, ?mod:String):Bool
+	/** Las clases que solo existen en Dave Engine (un mod que las tiene es un mod de Dave). */
+	public static function isDaveOnlyClass(superName:String):Bool
 	{
+		return switch (superName)
+		{
+			case 'Character' | 'ScriptedCharacter' | 'SongModule' | 'ScriptedSongModule' | 'Dialogue' | 'ScriptedDialogue' | 'VoidBGSprite'
+				| 'ScriptedBGSprite': true;
+			default: false;
+		}
+	}
+
+	/**
+	 * Guarda la clase si es de Dave (personaje, escenario o módulo). Devuelve false si no lo es.
+	 * `superId`: el primer texto del `super(...)` del constructor. `daveMod`: si el mod del
+	 * .hxc es de Dave (así un `extends Module` es un módulo de Dave y no uno de V-Slice).
+	 */
+	public static function register(name:String, superName:String, superId:String, file:String, ?mod:String, daveMod:Bool = false):Bool
+	{
+		switch (superName)
+		{
+			case 'SongModule' | 'ScriptedSongModule':
+				remember(name, file, mod);
+				DaveModules.addClass(name, true);
+				return true;
+			case 'Module' | 'ScriptedModule' if (daveMod):
+				remember(name, file, mod);
+				DaveModules.addClass(name, false);
+				return true;
+			default:
+		}
 		var map:Map<String, String> = switch (superName)
 		{
 			case 'Character' | 'ScriptedCharacter': characterClasses;
@@ -83,10 +109,15 @@ class DaveScripts
 		if (map.exists(id) && map.get(id) != name)
 			trace('[Dave Engine] ${map.get(id)} y $name son el mismo "$id"; se usa $name.');
 		map.set(id, name);
+		remember(name, file, mod);
+		return true;
+	}
+
+	static function remember(name:String, file:String, mod:String):Void
+	{
 		files.set(name, file);
 		if (mod != null)
 			classMods.set(name, mod);
-		return true;
 	}
 
 	/** Si la clase es de un personaje o escenario de Dave (tienen los "imports por defecto" de Dave). */
@@ -101,9 +132,21 @@ class DaveScripts
 			name = (cast target : DaveCharacter).scriptClass;
 		else if (Std.isOfType(target, DaveStage))
 			name = (cast target : DaveStage).scriptClass;
+		else if (target != null && Std.isOfType(target, rulescript.scriptedClass.RuleScriptedClass))
+			return moduleName(target);
 		if (name == null)
 			return 'Dave Engine';
 		var file:String = files.get(name);
+		return file != null ? '$name ($file)' : name;
+	}
+
+	/** "miModulo (mods/x/scripts/modules/algo.hxc)" para los errores de un módulo. */
+	static function moduleName(target:Dynamic):String
+	{
+		var id:Dynamic = Reflect.getProperty(target, 'moduleId');
+		var script:Dynamic = Reflect.field(target, '__rulescript');
+		var file:Dynamic = script != null ? Reflect.getProperty(script, 'scriptName') : null;
+		var name:String = id != null ? Std.string(id) : 'Dave Engine';
 		return file != null ? '$name ($file)' : name;
 	}
 
@@ -112,6 +155,10 @@ class DaveScripts
 		var message:String = Std.isOfType(error, haxe.Exception) ? (cast error : haxe.Exception).message : Std.string(error);
 		FluxVSliceModules.reportError(describe(target), message);
 	}
+
+	/** Un error de una clase por su nombre (con su archivo). */
+	public static function reportClass(name:String, message:String):Void
+		FluxVSliceModules.reportError(files.exists(name) ? '$name (${files.get(name)})' : name, message);
 
 	/** Crea el script de un personaje para un personaje de Psych (null si falla). */
 	public static function createCharacter(className:String, target:objects.Character):DaveCharacter
