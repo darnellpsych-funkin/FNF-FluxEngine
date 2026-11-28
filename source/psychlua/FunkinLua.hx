@@ -57,7 +57,7 @@ class FunkinLua {
 	public var callbacks:Map<String, Dynamic> = new Map<String, Dynamic>();
 	public static var customFunctions:Map<String, Dynamic> = new Map<String, Dynamic>();
 
-	public function new(scriptName:String) {
+	public function new(scriptName:String, ?code:String) { // Flux Engine: `code` = Lua ya armado (un .zs pasado a Lua)
 		lua = LuaL.newstate();
 		LuaL.openlibs(lua);
 
@@ -304,6 +304,13 @@ class FunkinLua {
 							return;
 						}
 
+				#if FLUX_ZS
+				if (flux.scripting.FluxZS.isZS(luaPath)) // Flux Engine: un .zs de ZS Engine (se pasa a Lua)
+				{
+					flux.scripting.FluxZS.start(luaPath);
+					return;
+				}
+				#end
 				new FunkinLua(luaPath);
 				return;
 			}
@@ -1577,9 +1584,11 @@ class FunkinLua {
 		}
 
 		try{
-			var isString:Bool = !FileSystem.exists(scriptName);
+			var isString:Bool = code == null && !FileSystem.exists(scriptName);
 			var result:Dynamic = null;
-			if(!isString)
+			if(code != null)
+				result = LuaL.dostring(lua, code);
+			else if(!isString)
 				result = LuaL.dofile(lua, scriptName);
 			else
 				result = LuaL.dostring(lua, scriptName);
@@ -1757,6 +1766,9 @@ class FunkinLua {
 
 	function findScript(scriptFile:String, ext:String = '.lua')
 	{
+		#if FLUX_ZS
+		if(ext == '.lua' && scriptFile.toLowerCase().endsWith('.zs')) ext = scriptFile.substr(scriptFile.length - 3); // Flux Engine: los .zs son scripts de Lua
+		#end
 		if(!scriptFile.endsWith(ext)) scriptFile += ext;
 		var path:String = Paths.getPath(scriptFile, TEXT);
 		#if MODS_ALLOWED

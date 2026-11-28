@@ -514,6 +514,10 @@ class PlayState extends MusicBeatState
 				if(file.toLowerCase().endsWith('.lua'))
 					new FunkinLua(folder + file);
 				#end
+				#if FLUX_ZS
+				if(flux.scripting.FluxZS.isZS(file)) // Flux Engine: .zs de ZS Engine (se pasa a Lua)
+					flux.scripting.FluxZS.start(folder + file);
+				#end
 
 				#if HSCRIPT_ALLOWED
 				if(file.toLowerCase().endsWith('.hx') || file.toLowerCase().endsWith('.hscript')) // Flux Engine: .hscript es igual que .hx
@@ -543,6 +547,7 @@ class PlayState extends MusicBeatState
 		#if (LUA_ALLOWED || HSCRIPT_ALLOWED || FLUX_SCRIPTS_ALLOWED)
 		// STAGE SCRIPTS
 		#if LUA_ALLOWED startLuasNamed('stages/' + curStage + '.lua'); #end
+		#if FLUX_ZS flux.scripting.FluxZS.startNamed('stages/' + curStage + '.zs'); #end
 		#if HSCRIPT_ALLOWED startHScriptsNamed('stages/' + curStage + '.hx'); startHScriptsNamed('stages/' + curStage + '.hscript'); #end
 		#if FLUX_SCRIPTS_ALLOWED startFluxScriptsNamed('stages/' + curStage); #end
 
@@ -657,6 +662,12 @@ class PlayState extends MusicBeatState
 		for (event in eventsPushed)
 			startLuasNamed('custom_events/' + event + '.lua');
 		#end
+		#if FLUX_ZS
+		for (notetype in noteTypes)
+			flux.scripting.FluxZS.startNamed('custom_notetypes/' + notetype + '.zs');
+		for (event in eventsPushed)
+			flux.scripting.FluxZS.startNamed('custom_events/' + event + '.zs');
+		#end
 
 		#if HSCRIPT_ALLOWED
 		for (notetype in noteTypes)
@@ -684,6 +695,10 @@ class PlayState extends MusicBeatState
 				#if LUA_ALLOWED
 				if(file.toLowerCase().endsWith('.lua'))
 					new FunkinLua(folder + file);
+				#end
+				#if FLUX_ZS
+				if(flux.scripting.FluxZS.isZS(file)) // Flux Engine: .zs de ZS Engine (se pasa a Lua)
+					flux.scripting.FluxZS.start(folder + file);
 				#end
 
 				#if HSCRIPT_ALLOWED
@@ -845,6 +860,9 @@ class PlayState extends MusicBeatState
 
 	function startCharacterScripts(name:String)
 	{
+		#if FLUX_ZS
+		flux.scripting.FluxZS.startNamed('characters/$name.zs'); // Flux Engine: .zs de ZS Engine
+		#end
 		// Lua
 		#if LUA_ALLOWED
 		var doPush:Bool = false;
