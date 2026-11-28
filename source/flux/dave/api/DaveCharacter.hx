@@ -309,7 +309,7 @@ class DaveCharacter
 		unsuper();
 		if (character == null)
 			return;
-		for (name => offset in DaveCharacters.readOffsets(character))
+		for (name => offset in DaveCharacters.readOffsets(character, scriptClass))
 			animOffsets.set(name, offset);
 		refreshOffsets();
 	}

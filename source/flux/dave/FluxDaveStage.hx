@@ -109,7 +109,7 @@ class FluxDaveStage extends BaseStage
 	{
 		if (id == null || id.length == 0)
 			return null;
-		var data:Dynamic = FluxVSliceAssets.readJson(FluxVSliceAssets.findData('data/stages/$id.json'));
+		var data:Dynamic = FluxVSliceAssets.readJson(DaveScripts.findFile('data/stages/$id.json', DaveScripts.stageClasses.get(id)));
 		return DaveData.isStage(data) ? data : null;
 	}
 

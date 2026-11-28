@@ -192,7 +192,7 @@ class FluxVSliceModules
 			}
 			#if FLUX_DAVE_SCRIPTS
 			// personajes y escenarios de Dave Engine: se crean cuando la canción los usa
-			if (flux.dave.DaveScripts.register(info.name, info.superName, info.superId, info.file))
+			if (flux.dave.DaveScripts.register(info.name, info.superName, info.superId, info.file, info.mod))
 			{
 				loadedDave.push('${info.superId != null ? info.superId : info.name} (${info.name}) [${info.mod}]');
 				continue;
@@ -501,36 +501,48 @@ class FluxVSliceModules
 
 	/**
 	 * Para VSPaths: si no se encuentra un archivo en el mod actual de Psych,
-	 * lo busca en el mod del módulo que está recibiendo el evento.
+	 * lo busca en el mod del módulo que está recibiendo el evento y después en
+	 * los otros mods activos (como Polymod, que junta los archivos de todos:
+	 * un mod de fans usa las imágenes del juego base que está en otro mod).
 	 */
 	public static function withModFallback(load:Void->Dynamic):Dynamic
 	{
-		var result:Dynamic = null;
-		try
-		{
-			result = load();
-		}
-		catch (e:Dynamic)
-		{
-			result = null;
-		}
+		var result:Dynamic = tryLoad(load);
 		#if MODS_ALLOWED
-		if (result == null && currentMod != null && Mods.currentModDirectory != currentMod)
+		if (result == null)
 		{
 			var old:String = Mods.currentModDirectory;
-			Mods.currentModDirectory = currentMod;
-			try
+			var tried:Array<String> = [old];
+			var others:Array<String> = currentMod != null ? [currentMod] : [];
+			for (mod in enabledMods)
+				if (!others.contains(mod))
+					others.push(mod);
+			for (mod in others)
 			{
-				result = load();
-			}
-			catch (e:Dynamic)
-			{
-				result = null;
+				if (tried.contains(mod))
+					continue;
+				tried.push(mod);
+				Mods.currentModDirectory = mod;
+				result = tryLoad(load);
+				if (result != null)
+					break;
 			}
 			Mods.currentModDirectory = old;
 		}
 		#end
 		return result;
+	}
+
+	static function tryLoad(load:Void->Dynamic):Dynamic
+	{
+		try
+		{
+			return load();
+		}
+		catch (e:Dynamic)
+		{
+			return null;
+		}
 	}
 
 	// ----- Señales de Flixel -----
