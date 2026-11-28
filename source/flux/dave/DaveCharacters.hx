@@ -2,6 +2,9 @@ package flux.dave;
 
 #if FLUX_DAVE_SCRIPTS
 import flixel.animation.FlxAnimation;
+import flixel.group.FlxSpriteGroup;
+import flixel.math.FlxPoint;
+import flixel.util.FlxColor;
 import flux.dave.api.DaveApi;
 import flux.dave.api.DaveCharacter;
 import flux.vslice.FluxVSliceAssets;
@@ -302,6 +305,173 @@ class DaveCharacters
 		gf.setPosition(game.GF_X + gf.positionArray[0], game.GF_Y + gf.positionArray[1]);
 		if (FluxDaveStage.current != null)
 			FluxDaveStage.current.placeCharacter(gf, 'gf');
+	}
+
+	/**
+	 * dadOverride / bfOverride de Dave (los pone un SongModule en onCreate, antes de que se
+	 * creen los personajes). Psych ya creó los del chart; si piden otro, se cambia.
+	 */
+	public static function applyOverrides(game:PlayState):Void
+	{
+		if (game == null)
+			return;
+		for (role in ['dad', 'bf'])
+		{
+			var wanted:String = role == 'dad' ? FluxDaveStage.dadOverride : FluxDaveStage.bfOverride;
+			var char:Character = role == 'dad' ? game.dad : game.boyfriend;
+			if (wanted == null || wanted.length == 0 || char == null || wanted == char.curCharacter || !exists(wanted))
+				continue;
+			char.changeCharacter(wanted);
+			if (role == 'dad')
+				char.setPosition(game.DAD_X + char.positionArray[0], game.DAD_Y + char.positionArray[1]);
+			else
+				char.setPosition(game.BF_X + char.positionArray[0], game.BF_Y + char.positionArray[1]);
+			if (FluxDaveStage.current != null)
+				FluxDaveStage.current.placeCharacter(char, role);
+		}
+	}
+
+	/** El alpha que tenía cada personaje cuando switchDad lo cambió por otro (para cuando vuelva). */
+	static var savedAlpha:haxe.ds.ObjectMap<Character, Float> = new haxe.ds.ObjectMap<Character, Float>();
+
+	/**
+	 * switchDad / switchBF / switchGF de Dave Engine. Como el evento "Change Character" de
+	 * Psych, el personaje nuevo queda en el mapa del PlayState (si ya estuvo en la canción o
+	 * lo cargó Preloader.cacheCharacter, se reusa) y el anterior se oculta. Lo pone en
+	 * `position` (coordenadas del mundo, como en Dave); con `reposition`, a la posición se le
+	 * resta el globalOffset del anterior y se le suma el del nuevo.
+	 */
+	public static function switchCharacter(game:PlayState, role:String, id:String, ?position:Dynamic, reposition:Bool = true,
+			updateColor:Bool = true):Character
+	{
+		if (game == null || id == null || id.length == 0)
+			return null;
+		var type:Int = switch (role)
+		{
+			case 'bf': 0;
+			case 'gf': 2;
+			default: 1;
+		};
+		var old:Character = roleCharacter(game, type);
+		if (type == 2 && old == null)
+			return null; // el escenario no tiene GF
+		var x:Null<Float> = null;
+		var y:Null<Float> = null;
+		if (position != null)
+		{
+			x = DaveData.num(Reflect.getProperty(position, 'x'), 0);
+			y = DaveData.num(Reflect.getProperty(position, 'y'), 0);
+			if (reposition && old != null)
+			{
+				x -= old.positionArray[0];
+				y -= old.positionArray[1];
+			}
+		}
+
+		var map:Map<String, Character> = switch (type)
+		{
+			case 0: game.boyfriendMap;
+			case 2: game.gfMap;
+			default: game.dadMap;
+		};
+		// el del chart no está en el mapa de Psych: así, si vuelve, es el mismo (no uno nuevo)
+		if (old != null && !map.exists(old.curCharacter))
+			map.set(old.curCharacter, old);
+		if (!map.exists(id))
+		{
+			// el onCharacterAdd del escenario va cuando ya está en su lugar (abajo)
+			FluxDaveStage.quiet = true;
+			try
+			{
+				game.addCharacterToList(id, type);
+			}
+			catch (e:Dynamic)
+			{
+				trace('[Flux Dave Engine] no se pudo crear el personaje $id: $e');
+			}
+			FluxDaveStage.quiet = false;
+		}
+		var next:Character = map.get(id);
+		if (next == null)
+			return old;
+
+		if (old != null && old != next)
+		{
+			savedAlpha.set(old, old.alpha);
+			old.alpha = 0.00001;
+		}
+		if (old != next)
+		{
+			next.alpha = savedAlpha.exists(next) ? savedAlpha.get(next) : 1;
+			savedAlpha.remove(next);
+		}
+		switch (type)
+		{
+			case 0:
+				game.boyfriend = next;
+			case 2:
+				game.gf = next;
+			default:
+				game.dad = next;
+		}
+
+		// la posición: la del lugar en el escenario, la que pidió el script y su globalOffset
+		var group:FlxSpriteGroup = switch (type)
+		{
+			case 0: game.boyfriendGroup;
+			case 2: game.gfGroup;
+			default: game.dadGroup;
+		};
+		if (x != null)
+			next.setPosition(x, y);
+		else if (group != null)
+			next.setPosition(group.x, group.y);
+		if (reposition || x == null)
+		{
+			next.x += next.positionArray[0];
+			next.y += next.positionArray[1];
+		}
+
+		var roleName:String = type == 0 ? 'bf' : (type == 2 ? 'gf' : 'dad');
+		if (FluxDaveStage.current != null)
+			FluxDaveStage.current.placeCharacter(next, roleName);
+		switch (type)
+		{
+			case 0:
+				if (game.iconP1 != null)
+					game.iconP1.changeIcon(next.healthIcon);
+				game.setOnScripts('boyfriendName', next.curCharacter);
+			case 2:
+				game.setOnScripts('gfName', next.curCharacter);
+			default:
+				if (game.iconP2 != null)
+					game.iconP2.changeIcon(next.healthIcon);
+				game.setOnScripts('dadName', next.curCharacter);
+		}
+		if (updateColor && type != 2)
+			game.reloadHealthBarColors();
+		return next;
+	}
+
+	static function roleCharacter(game:PlayState, type:Int):Character
+	{
+		return switch (type)
+		{
+			case 0: game.boyfriend;
+			case 2: game.gf;
+			default: game.dad;
+		};
+	}
+
+	/** El color de la barra de vida de un personaje (characterColor de Dave o el de Psych). */
+	public static function colorOf(char:Character):FlxColor
+	{
+		if (char == null)
+			return FlxColor.WHITE;
+		if (char.daveScript != null)
+			return char.daveScript.characterColor;
+		var rgb:Array<Int> = char.healthColorArray;
+		return (rgb != null && rgb.length >= 3) ? FlxColor.fromRGB(rgb[0], rgb[1], rgb[2]) : FlxColor.WHITE;
 	}
 
 	/** Si hay un personaje (de Dave o de Psych) con ese nombre. */

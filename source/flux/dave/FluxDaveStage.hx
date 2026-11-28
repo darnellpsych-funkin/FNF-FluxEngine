@@ -4,6 +4,7 @@ package flux.dave;
 import backend.BaseStage;
 import backend.StageData.StageFile;
 import flixel.FlxBasic;
+import flixel.FlxG;
 import flixel.FlxSprite;
 import flixel.FlxSubState;
 import flixel.group.FlxSpriteGroup;
@@ -40,6 +41,17 @@ class FluxDaveStage extends BaseStage
 	/** PlayState.instance.elapsedTime de Dave: segundos que corrió la canción (sin pausas). */
 	public static var elapsedTime(default, null):Float = 0;
 
+	/** PlayState.instance.dadOverride / bfOverride de Dave: el personaje que pide un SongModule. */
+	public static var dadOverride:String = null;
+
+	public static var bfOverride:String = null;
+
+	/** PlayState.instance.focusOnDadGlobal de Dave: si la cámara está en el oponente. */
+	public static var focusOnDad:Bool = true;
+
+	/** Mientras es true, placeCharacter no manda onCharacterAdd (personajes que se cargan ocultos). */
+	public static var quiet:Bool = false;
+
 	public var id(default, null):String;
 
 	/** El JSON de Dave (null si solo está para los personajes de Dave). */
@@ -66,12 +78,26 @@ class FluxDaveStage extends BaseStage
 	var groupZ:ObjectMap<FlxBasic, Int> = new ObjectMap<FlxBasic, Int>();
 	var pausedByMenu:Bool = false;
 
+	/**
+	 * Lo de Dave de la canción anterior se borra (lo llama PlayState.create antes de crear
+	 * los SongModule, que pueden poner gfOverride, dadOverride...).
+	 */
+	public static function resetSong():Void
+	{
+		current = null;
+		gfOverride = null;
+		dadOverride = null;
+		bfOverride = null;
+		focusOnDad = true;
+		quiet = false;
+		elapsedTime = 0;
+		gameOverTaken = false;
+	}
+
 	/** El escenario de Dave con ese id (null si no hay o si gana uno de Psych). */
 	public static function load(id:String):FluxDaveStage
 	{
 		current = null;
-		gfOverride = null;
-		elapsedTime = 0;
 		if (id == null || id.length == 0)
 			return null;
 		if (!DaveCharacters.daveWins(Paths.getPath('stages/$id.json', TEXT)))
@@ -84,24 +110,92 @@ class FluxDaveStage extends BaseStage
 	}
 
 	/**
-	 * Sin escenario de Dave pero con personajes de Dave en la canción: un escenario vacío
-	 * que solo les manda los eventos (onBeatHit, onUpdate...).
+	 * Sin escenario de Dave pero con personajes o módulos de Dave en la canción: un escenario
+	 * vacío que solo les manda los eventos (onBeatHit, onUpdate...).
 	 */
 	public static function forCharacters(game:PlayState):FluxDaveStage
 	{
 		if (current != null || game == null)
 			return current;
+		var needed:Bool = DaveModules.songModules.length > 0 || (DaveCharacters.preferDave && DaveModules.modules.length > 0);
 		for (char in [game.gf, game.dad, game.boyfriend])
 			if (char != null && char.daveScript != null)
-			{
-				var stage:FluxDaveStage = new FluxDaveStage(null, null);
-				stage.playState = game;
-				stage.placeCharacter(game.gf, 'gf');
-				stage.placeCharacter(game.dad, 'dad');
-				stage.placeCharacter(game.boyfriend, 'bf');
-				return stage;
-			}
-		return null;
+				needed = true;
+		if (!needed)
+			return null;
+		var stage:FluxDaveStage = new FluxDaveStage(null, null);
+		stage.playState = game;
+		stage.built = true; // lo que agreguen con currentStage.add() va directo al PlayState
+		stage.placeCharacter(game.gf, 'gf');
+		stage.placeCharacter(game.dad, 'dad');
+		stage.placeCharacter(game.boyfriend, 'bf');
+		return stage;
+	}
+
+	var bareStage:DaveStage = null;
+
+	/**
+	 * PlayState.instance.currentStage para los scripts de Dave: el script del escenario, o
+	 * (en un escenario de Psych) un Stage de Dave sin script que agrega al PlayState.
+	 */
+	public function facade():DaveStage
+	{
+		if (script != null)
+			return script;
+		if (bareStage == null)
+		{
+			DaveStage.pendingRuntime = this;
+			bareStage = new DaveStage(id != null ? id : 'flux-psych-stage');
+			DaveStage.pendingRuntime = null;
+		}
+		return bareStage;
+	}
+
+	/**
+	 * Un evento de Dave que se puede cancelar (onSongEnd, onGameOver...): true si nadie lo
+	 * canceló (o si no es una canción de Dave).
+	 */
+	public static function cancellable(method:String, type:String):Bool
+	{
+		if (current == null)
+			return true;
+		var event:ScriptEvent = new ScriptEvent(type, true);
+		current.dispatch(method, event);
+		return !event.eventCanceled;
+	}
+
+	/** Si un script de Dave canceló el game over (y se encarga él: un video, otra pantalla...). */
+	public static var gameOverTaken(default, null):Bool = false;
+
+	/**
+	 * onGameOver de Dave (se puede cancelar). Si lo cancelan, como en Dave el juego queda
+	 * pausado y sin música, y no se vuelve a mandar. Devuelve true si sigue el game over de Psych.
+	 */
+	public static function gameOver(game:PlayState):Bool
+	{
+		if (gameOverTaken)
+			return false;
+		if (cancellable('onGameOver', 'game_over'))
+			return true;
+		gameOverTaken = true;
+		if (game != null)
+		{
+			game.paused = true;
+			if (game.vocals != null)
+				game.vocals.stop();
+			if (FlxG.sound.music != null)
+				FlxG.sound.music.stop();
+		}
+		return false;
+	}
+
+	/** PlayState.moveCamera / moveCameraSection: onCameraMove y onCameraMoveSection de Dave. */
+	public static function cameraMoved(isDad:Bool, section:Bool):Void
+	{
+		if (current == null)
+			return;
+		focusOnDad = isDad;
+		current.dispatch(section ? 'onCameraMoveSection' : 'onCameraMove', new DaveCameraEvent(section ? 'camera_move_section' : 'camera_move', isDad));
 	}
 
 	/** data/stages/<id>.json de Dave Engine, o null. */
@@ -302,7 +396,8 @@ class FluxDaveStage extends BaseStage
 				case 'gf': DaveCharacterType.GF;
 				default: DaveCharacterType.OTHER;
 			};
-		dispatch('onCharacterAdd', new DaveAddCharacterEvent(char), false);
+		if (!quiet)
+			dispatch('onCharacterAdd', new DaveAddCharacterEvent(char), false);
 	}
 
 	/** Agrega los props y los grupos de los personajes al PlayState ordenados por zIndex. */
@@ -436,9 +531,16 @@ class FluxDaveStage extends BaseStage
 
 	// ----- Eventos -----
 
-	/** Manda un evento de Dave al escenario y a los personajes de Dave (como el dispatchEvent de su PlayState). */
+	/**
+	 * Manda un evento de Dave como el dispatchEvent de su PlayState: los módulos (globales y
+	 * de la canción), el escenario y los personajes de Dave. Los de solo el escenario
+	 * (onAdd, onCharacterAdd) van con `toCharacters` en false.
+	 */
 	public function dispatch(method:String, event:Dynamic, toCharacters:Bool = true):Void
 	{
+		// onUpdate de los módulos globales ya llega en todos los estados (DaveModules)
+		if (toCharacters)
+			DaveModules.dispatch(method, event, method != 'onUpdate');
 		if (script != null)
 			DaveScripts.dispatch(script, method, event);
 		if (toCharacters)
@@ -449,7 +551,7 @@ class FluxDaveStage extends BaseStage
 
 	public function dispatchToCharacters(event:Dynamic):Void
 	{
-		var method:String = Std.isOfType(event, ScriptEvent) ? methodOf((cast event : ScriptEvent).type) : null;
+		var method:String = methodOf(event);
 		if (method == null)
 			return;
 		for (char in characters())
@@ -457,9 +559,10 @@ class FluxDaveStage extends BaseStage
 				DaveScripts.dispatch(char.daveScript, method, event);
 	}
 
-	/** El nombre de la función de un tipo de evento de Dave ('beat_hit' -> 'onBeatHit'). */
-	static function methodOf(type:String):String
+	/** El nombre de la función de un evento (o de su tipo) de Dave ('beat_hit' -> 'onBeatHit'). */
+	public static function methodOf(eventOrType:Dynamic):String
 	{
+		var type:String = Std.isOfType(eventOrType, String) ? eventOrType : (Std.isOfType(eventOrType, ScriptEvent) ? (cast eventOrType : ScriptEvent).type : null);
 		if (type == null || type.length == 0)
 			return null;
 		var name:String = 'on';
@@ -494,10 +597,16 @@ class FluxDaveStage extends BaseStage
 	}
 
 	override function stepHit():Void
+	{
 		dispatch('onStepHit', new DaveConductorEvent('step_hit', curStep, curBeat, curSection));
+		DaveAdapter.zoomBop(playState, curStep, true);
+	}
 
 	override function beatHit():Void
+	{
 		dispatch('onBeatHit', new DaveConductorEvent('beat_hit', curStep, curBeat, curSection));
+		DaveAdapter.zoomBop(playState, curBeat, false);
+	}
 
 	override function sectionHit():Void
 		dispatch('onMeasureHit', new DaveConductorEvent('measure_hit', curStep, curBeat, curSection));
@@ -518,7 +627,12 @@ class FluxDaveStage extends BaseStage
 	}
 
 	override function startSong():Void
+	{
+		// en Dave la cámara empieza a saltar con el ritmo cuando empieza la canción
+		if (DaveCharacters.preferDave && playState != null)
+			playState.camZooming = true;
 		dispatch('onSongStart', new ScriptEvent('song_start'));
+	}
 
 	override function goodNoteHit(note:Note):Void
 	{
@@ -546,9 +660,8 @@ class FluxDaveStage extends BaseStage
 
 	override function openSubState(SubState:FlxSubState):Void
 	{
-		if (Std.isOfType(SubState, substates.GameOverSubstate))
-			dispatch('onGameOver', new ScriptEvent('game_over'));
-		else if (Std.isOfType(SubState, substates.PauseSubState))
+		// onGameOver se manda antes (FluxVSliceModules.onGameOver), para poder cancelarlo
+		if (Std.isOfType(SubState, substates.PauseSubState))
 		{
 			pausedByMenu = true;
 			dispatch('onPause', new ScriptEvent('pause'));
@@ -566,10 +679,14 @@ class FluxDaveStage extends BaseStage
 
 	override function destroy():Void
 	{
-		dispatch('onDestroy', new ScriptEvent('destroy'));
+		dispatch('onDestroy', new ScriptEvent('destroy'), true);
+		DaveModules.endSong(false); // los SongModule son de esta canción (ya recibieron onDestroy)
+		DaveAdapter.clear();
 		if (current == this)
 			current = null;
 		gfOverride = null;
+		dadOverride = null;
+		bfOverride = null;
 		super.destroy();
 	}
 }
